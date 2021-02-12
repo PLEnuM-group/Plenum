@@ -41,7 +41,7 @@ def plot_area(vals, ax, npix=768, colorbar=dict(cmap='viridis'), masked=True,
 
     # create a xy grid of both angles
     x = np.linspace(-np.pi, np.pi, npix)
-    y = np.linspace( 0, np.pi, npix / 2)
+    y = np.linspace( 0, np.pi, npix // 2)
     X, Y = np.meshgrid(x, y)
 
     YY, XX = Y.ravel(), X.ravel()
