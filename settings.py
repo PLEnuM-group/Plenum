@@ -22,7 +22,8 @@ sns.set(
         'axes.grid': True,
         'grid.color': "0.9",
         'mathtext.fontset': 'cm',
-        'image.cmap': 'mako'
+        'image.cmap': 'mako',
+        'savefig.format': 'pdf'
     }
 )
 
