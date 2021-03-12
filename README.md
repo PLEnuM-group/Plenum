@@ -1,6 +1,7 @@
 # PLENUM
-This repository contains several notebooks that aim to 
+This repository contains code that aims to 
 show the potential of a global neutrino telescope network.
+Potential analyses are illustrated in the available notebooks.
 
 The basic assumption of this study is, that all new telescopes 
 included in the so-called PLENUM network behave similar to IceCube.
