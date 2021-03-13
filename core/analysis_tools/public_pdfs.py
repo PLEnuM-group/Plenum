@@ -10,7 +10,7 @@ class  EffectiveAreas(object):
     and allows to use it within the analyses
     '''
 
-    def __init__(self, path='resources/effective_areas_av_per_day_fine_binning.npy', 
+    def __init__(self, path='../resources/effective_areas_av_per_day_fine_binning.npy', 
             log_etrue_bins=np.arange(2,8.1,0.1), sindec_bins = np.linspace(-1.,1.,35) ):
         r'''
         '''
@@ -77,7 +77,7 @@ class TrueEnergy2ReconstructedEnergySmearing(object):
     monte carlo
     '''
 
-    def __init__(self, path_public='resources/IC86_II_smearing.csv',
+    def __init__(self, path_public='../resources/IC86_II_smearing.csv',
             mc_path=None):
         r'''
         '''
