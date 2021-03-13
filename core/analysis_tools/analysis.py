@@ -63,7 +63,7 @@ class Analysis(object, metaclass=abc.ABCMeta):
         pass
 
     def do_trials(self, n_trials, signal_kwargs=None, spatial_masks=None,
-            bckg_kwargs={'atm_keys':'numu'}, data=None, **kwargs):
+            bckg_kwargs={'atm_keys':'numu'}, data=None, med=False, **kwargs):
         r'''
         '''
         lambda_b = self._generate_background_expectation(**bckg_kwargs)
@@ -78,7 +78,8 @@ class Analysis(object, metaclass=abc.ABCMeta):
             else:
                 lambda_tot = copy(lambda_b)
 
-            data = self.generate_background_data(lambda_tot, n_trials)
+            data = self.generate_background_data(lambda_tot, n_trials,
+                    med=med)
         
         return_data = kwargs.pop('return_data', False)
         if return_data:
@@ -92,15 +93,15 @@ class Analysis(object, metaclass=abc.ABCMeta):
     def generate_background_data(self, lambda_b, n_trials, med=False):
         r'''
         '''
-        if med:
-            return lambda_b
 
         data = dict()
         for exp_key in self._effective_areas.exp_keys:
-            out = self.rand.poisson(lambda_b[exp_key].flatten(), size=(n_trials, 
-                len(lambda_b[exp_key].flatten())))
-            data[exp_key] = out.reshape((n_trials,)+lambda_b[exp_key].shape)
-
+            if med:
+                data[exp_key] = lambda_b[exp_key][np.newaxis,...]
+            else:
+                out = self.rand.poisson(lambda_b[exp_key].flatten(), size=(n_trials, 
+                    len(lambda_b[exp_key].flatten())))
+                data[exp_key] = out.reshape((n_trials,)+lambda_b[exp_key].shape)
         return data
 
     def int_powerlaw(self, phi0, gamma, emin, emax, E0=1e5):
@@ -273,6 +274,8 @@ class KRAgammaAnalysis(GenericSpatialTemplateAnalysis):
 
         if norms is None:
             self._norms = 10**np.arange(-4,2,0.1)
+        else:
+            self._norms = norms
 
 
     def _generate_signal_expectation_hist(self, norms):
@@ -300,10 +303,59 @@ class KRAgammaAnalysis(GenericSpatialTemplateAnalysis):
             self._signal_expectations[exp_key] = b[...,np.newaxis]* norms * self.lt
         return
 
-    def _generate_signal_expectation(self, norm, exp_key=None):
+    def _generate_signal_expectation_hist_v2(self, norms):
         r'''
         '''
-        if self._signal_expectations is None:
+
+        xx1, yy1 = np.meshgrid(self.ra_mids, self.sindec_mids, indexing='ij')
+        ra_width = self.ra_width[0]/2.
+        sindec_width = self.sindec_width[0]/2.
+        self._signal_expectations = dict()
+        res = dict()
+        for exp_key in self._effective_areas.exp_keys:
+            res[exp_key] = np.zeros((self._n_ereco,np.prod(self._xx_ra.shape),)\
+                    +norms.shape, dtype=float)
+        
+        for i, (xi,yi) in enumerate(zip(xx1.flatten(), yy1.flatten())):
+
+            ra_midsi = np.linspace(xi-ra_width, xi+ra_width, 4, endpoint=True)
+            sindec_midsi = np.linspace(yi-sindec_width, yi+sindec_width, 4, 
+                    endpoint=True)
+            pixel_sizes = self.pixel_sizes[0,0]
+
+
+            _xx1, _yy1 = np.meshgrid(ra_midsi, sindec_midsi, indexing='ij')
+            kragamma_hist = self.signal_model._generate_KRAgamma_skymap(
+                    ra_midsi, sindec_midsi, self._etrue_mids)
+            eval_bins_sindec = _yy1.flatten()
+
+            #self._signal_expectations = dict()
+            for exp_key in self._effective_areas.exp_keys:
+                xx0,yy0 = np.meshgrid(eval_bins_sindec, self._etrue_mids,
+                        indexing='ij')
+
+                effa = self._effective_areas.get_eff_area_values(xx0, 
+                        yy0, exp_key).reshape(_xx1.shape+(self._n_etrue,))
+
+                a = (pixel_sizes* effa*kragamma_hist*
+                        self._etrue_bin_width).reshape((np.prod(_xx1.shape),
+                        self._n_etrue))
+                b = np.dot(self._energy_smearing_matrix, a.T).reshape(
+                        (self._n_ereco,)+_xx1.shape)
+                res[exp_key][:,i,:] = np.sum(b[...,np.newaxis]* norms * self.lt, axis=(1,2)) \
+                        / np.prod(_xx1.shape)
+
+        for exp_key in self._effective_areas.exp_keys:
+            self._signal_expectations[exp_key] = res[exp_key].reshape((self._n_ereco,) \
+                    +self._xx_ra.shape+norms.shape )
+        return
+
+
+    def _generate_signal_expectation(self, norm, exp_key=None, force_update=False):
+        r'''
+        '''
+        if (self._signal_expectations is None) or \
+                force_update:
             self._generate_signal_expectation_hist(self._norms)
 
         ind = np.argmin(np.abs(self._norms-norm))
@@ -311,11 +363,11 @@ class KRAgammaAnalysis(GenericSpatialTemplateAnalysis):
             signal_values = dict()
             for exp_keyi in self._effective_areas.exp_keys:
                 signal_values[exp_keyi] = deepcopy(
-                    self._signal_expectations[exp_keyi][...,ind])
+                    self._signal_expectations[exp_keyi][...,ind][np.newaxis,...])
             return signal_values
         else:
             signal_values = deepcopy(
-                    self._signal_expectations[exp_key][...,ind])
+                    self._signal_expectations[exp_key][...,ind][np.newaxis,...])
             return signal_values
 
     def _test_statistic_function(self, data, lambda_b, spatial_masks=None):
@@ -328,7 +380,7 @@ class KRAgammaAnalysis(GenericSpatialTemplateAnalysis):
             llh_vals = np.zeros((data[exp_key].shape[0], len(self._norms)), dtype=float)
             for i,normi in enumerate(self._norms):
                 lambda_s = self._generate_signal_expectation(norm=normi, 
-                        exp_key=exp_key)
+                        exp_key=exp_key)[0]
                 d, lb, ls = data[exp_key], copy(lambda_b[exp_key]), copy(lambda_s)
                 if spatial_masks is not None:
                     for k, lb_k in enumerate(lb):
@@ -337,7 +389,7 @@ class KRAgammaAnalysis(GenericSpatialTemplateAnalysis):
 
                 llh_vals[:,i] = self._llh_ratio_function(d, 
                         lambda_b=lb, lambda_s=ls)
-    
+
             ts = np.max(llh_vals,axis=1)
             ts[ts<0] = 0.
 
@@ -366,7 +418,6 @@ class KRAgammaAnalysis(GenericSpatialTemplateAnalysis):
         #background expectation should not be 0
         _mask = (np.ones_like(lambda_s)*lambda_b) == 0.
         r[_mask] = 0.
-
         res = 2 * np.sum(np.log(1+r)[np.newaxis,...] * data - \
                 lambda_s[np.newaxis,...],axis=axis)
         return res

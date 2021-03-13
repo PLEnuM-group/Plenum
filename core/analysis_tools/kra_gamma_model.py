@@ -5,7 +5,7 @@ import numpy as np
 import tables, math, os, sys, scipy
 import healpy as hp
 
-gaggeroFile = r"resources/gaggero_KRAgamma_hardening_5e7_neutrino_COGalprop_HIGalprop_healpix.V2_hd5"
+gaggeroFile = r"../resources/gaggero_KRAgamma_hardening_5e7_neutrino_COGalprop_HIGalprop_healpix.V2_hd5"
 class GaggeroMap(object):
     def __init__(self, filename):
         hdf = tables.open_file(filename)

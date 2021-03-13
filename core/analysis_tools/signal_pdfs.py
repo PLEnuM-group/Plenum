@@ -6,6 +6,8 @@ import numpy as np
 from core.analysis_tools.kra_gamma_model import GaggeroMap,gaggeroFile
 from astropy.coordinates import SkyCoord
 from scipy.special import expn
+from core.progressbar.progressbar import ProgressBar
+
 
 class SignalSpectrumKRAgamma(object):
     r'''
@@ -14,9 +16,9 @@ class SignalSpectrumKRAgamma(object):
         r'''
         '''
         self.model = kra_gamma_model(kra_gamma_file)
+        self._skymap = None
 
-
-    def _generate_KRAgamma_skymap(self, ra_mids, sindec_mids, etrue_mids):
+    def _generate_KRAgamma_skymap_v2(self, ra_mids, sindec_mids, etrue_mids):
         r'''
         '''
         n_etrue = len(etrue_mids)
@@ -35,12 +37,54 @@ class SignalSpectrumKRAgamma(object):
         return skymap
 
 
+    def _generate_KRAgamma_skymap(self, ra_mids, sindec_mids, etrue_mids):
+        r'''
+        '''
+        n = 4
+        n_etrue = len(etrue_mids)
+        xx,yy = np.meshgrid(ra_mids, np.arcsin(sindec_mids), indexing='ij')
+        ra_width = np.diff(ra_mids)[0]/2.
+        sindec_width = np.diff(sindec_mids)[0]/2.
+
+        skymap = np.zeros((len(xx.flatten()),n_etrue),dtype=float)
+        pbar = ProgressBar(len(xx.flatten()),parent=None).start()
+        for i, (xi,yi) in enumerate(zip(xx.flatten(), yy.flatten())):
+
+            ra_midsi = np.linspace(xi-ra_width, xi+ra_width, n, endpoint=True)
+            sindec_midsi = np.linspace(yi-sindec_width, yi+sindec_width, n, 
+                    endpoint=True)
+            _xx1, _yy1 = np.meshgrid(ra_midsi, sindec_midsi, indexing='ij')
+
+            cords = SkyCoord(_xx1.flatten(), _yy1.flatten(),  unit='rad')
+            glon = cords.galactic.l.rad
+            glat = cords.galactic.b.rad
+
+            skymapi = np.zeros((len(_xx1.flatten()),n_etrue),dtype=float)
+            for l, (xl,yl) in enumerate(zip(glon,glat)):
+                skymapi[l,:] = [self.model.GetFlux(energy=ek, lon=xl, lat=yl) 
+                 for k,ek in enumerate(etrue_mids)]
+            skymap[i,:] = np.sum(skymapi, axis=0) / np.prod(_xx1.shape)
+            pbar.increment()
+        pbar.finish()
+
+        skymap = skymap.reshape((xx.shape+(n_etrue,)))
+        self._skymap = skymap
+        return skymap
+
+
+        
+
+
+
     def _generate_KRAgamma_skymap_integrated(self, ra_mids, sindec_mids, etrue_mids, 
             etrue_widths):
         r'''
         '''
-        skymap = self._generate_KRAgamma_skymap(ra_mids, sindec_mids, etrue_mids)
-        return np.sum(skymap * etrue_widths, axis=-1)
+        try:
+            return np.sum(self._skymap * etrue_widths, axis=-1)
+        except:
+            skymap = self._generate_KRAgamma_skymap(ra_mids, sindec_mids, etrue_mids)
+            return np.sum(skymap * etrue_widths, axis=-1)
 
 
 
