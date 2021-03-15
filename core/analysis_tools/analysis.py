@@ -10,11 +10,33 @@ import scipy
 from core.progressbar.progressbar import ProgressBar
 
 class Analysis(object, metaclass=abc.ABCMeta):
-    ''' Abstract base class
+    ''' Abstract base class for any kind of binned frequentist 
+    analysis using effective areas from different experiment 
+    settings.
     '''
 
     def __init__(self, energy_smearing, atm_bckg, effective_areas,
             livetime=1, rng_seed=0):
+        r'''
+        Initialisation of every analysis instance
+        
+        Parameter:
+        -------------
+        energy_smearing: class
+            class instance that takes care of the conversion
+            between true and reconstructed energy
+        atm_bckg: class
+            class instance that allows the evaluation of 
+            atmospheric lepton fluxes.
+        effective_areas: class
+            class instance that contains the effective areas
+            for each experiment network
+        livetime: float
+            livetime of the experiment in years
+        rng_seed: int
+            seed for the random number generator used to 
+            generate trials
+        '''
 
         # Call the super function to allow for multiple class inheritance.
         super(Analysis, self).__init__()
@@ -40,31 +62,71 @@ class Analysis(object, metaclass=abc.ABCMeta):
 
     def reset_random_number_generator(self, seed):
         r'''
+        This function allows to reset the random number 
+        generator with a new seed
+
+        Parameters:
+        ---------------
+        seed: float
+            seed for the rng
         '''
         self.rand = np.random.RandomState(seed)
 
     def _generate_atmospheric_background_expectation(self):
         r'''
+        Function that allow the generation of atmospheric 
+        background
         '''
         pass
 
     def _generate_background_expectation(self):
         r'''
+        Function that generates the total background of 
+        the experiment
         '''
         pass
     def _generate_signal_expectation(self):
         r'''
+        Function that allows the evaluation of the 
+        signal expectation for a given signal hypothesis
         '''
         pass
 
     def _test_statistic_function(self):
         r'''
+        Function that allows the evaluation of the test 
+        statistic value of the frequentist analysis
         '''
         pass
 
     def do_trials(self, n_trials, signal_kwargs=None, spatial_masks=None,
             bckg_kwargs={'atm_keys':'numu'}, data=None, med=False, **kwargs):
         r'''
+        This function allows the generation of random trials
+
+        Parameters:
+        ---------------
+        n_trials: int
+            number of trials
+        signal_kwargs: dict | None
+            if not None, this dict contains the arguments of the signal 
+            that should be injected
+        spatial_masks: dict | None
+            if not None, this dict contains a spatial mask for each
+            detector network
+        bckg_kwargs: dict | {'atm_keys':'numu'}
+            contains the arguments of the background hypothesis
+        data: dict | None
+            if not None, this dict contains the experimental data used 
+            in these trials. if None the data is drawn on the fly
+        med: bool | False
+            if True, the median expectation values are used as data
+        **kwargs
+
+        Returns:
+        --------------
+        ts_values: dict
+            test statistic values for each trial for each detector network
         '''
         lambda_b = self._generate_background_expectation(**bckg_kwargs)
         if data is None:
@@ -92,6 +154,21 @@ class Analysis(object, metaclass=abc.ABCMeta):
 
     def generate_background_data(self, lambda_b, n_trials, med=False):
         r'''
+        Function that allows the generation of random background data trials
+
+        Parameters:
+        ---------------
+        lambda_b: array
+            background expectation values in each bin
+        n_trials: int
+            number of trials that shall be generated
+        med: bool | False
+            if True, median expectation values are used as data
+
+        Returns:
+        --------------
+        data: dict
+            experimental data for each detector network
         '''
 
         data = dict()
@@ -105,6 +182,26 @@ class Analysis(object, metaclass=abc.ABCMeta):
         return data
 
     def int_powerlaw(self, phi0, gamma, emin, emax, E0=1e5):
+        r''' Evaluates the integral of a single power-law 
+        within the given energy range
+
+        Parameters:
+        ----------------
+        phi0: float or array
+            flux normalisation at E0
+        gamma: float or array
+            spectral index
+        emin: float
+            minimum energy in GeV
+        emax: float
+            maximum energy in GeV
+        E0: float | 1e5
+            normalisation energy in GeV
+
+        Returns:
+        ----------
+        integral: float or array
+        '''
         if gamma!=1:
             return phi0*E0**(gamma)*1./(1-gamma) * (emax**(1-gamma) - emin**(1-gamma))
         else:
@@ -124,6 +221,14 @@ class Analysis(object, metaclass=abc.ABCMeta):
             expected number of background events in each bin
         lambda_s: array | (Nguess, bins.shape)
             expected number of signal events in each bin
+        axis: tuple | (1,2,3)
+            contains the axis along which the llh should be 
+            summed. hence the axis of the analysis bins
+
+        Returns:
+        ------------------
+        res: array
+            llh ratio values
         '''
 
         r = lambda_s / lambda_b 
@@ -137,13 +242,39 @@ class Analysis(object, metaclass=abc.ABCMeta):
 
 
 class GenericSpatialTemplateAnalysis(Analysis):
-    r'''
+    r''' Class containig some more information that 
+    will be used by any spatial template analysis
     '''
 
     def __init__(self, sindec_bins, ra_bins, log_ereco_bins, energy_smearing, 
             atm_bckg, effective_areas, livetime=1, rng_seed=0):
         r'''
+        Initialisation of every analysis instance
+        
+        Parameter:
+        -------------
+        sindec_bins: array
+            binning in sin(declination)
+        ra_bins: array
+            binning in right ascension
+        log_ereco_bins: array
+            binning in log reconstructed energy
+        energy_smearing: class
+            class instance that takes care of the conversion
+            between true and reconstructed energy
+        atm_bckg: class
+            class instance that allows the evaluation of 
+            atmospheric lepton fluxes.
+        effective_areas: class
+            class instance that contains the effective areas
+            for each experiment network
+        livetime: float
+            livetime of the experiment in years
+        rng_seed: int
+            seed for the random number generator used to 
+            generate trials
         '''
+
         super(GenericSpatialTemplateAnalysis, self).__init__(energy_smearing=energy_smearing, 
                 atm_bckg=atm_bckg, effective_areas=effective_areas, livetime=livetime, 
                 rng_seed=rng_seed)
@@ -184,8 +315,19 @@ class GenericSpatialTemplateAnalysis(Analysis):
 
 
     def _generate_atmospheric_background_expectation(self, atm_key, exp_key):
-        r'''
+         r'''
+        Function that allow the generation of atmospheric 
+        background
+
+        Parameters:
+        -----------------
+        atm_key: dict
+            keys of the atmospheric background leptons used
+        exp_key: str
+            key of the detector network as defined in the effective 
+            area class
         '''
+
         eval_bins_sindec = self._yy_sdec.flatten()
         Ntot = np.array([(self._effective_areas.get_eff_area_values(eval_bins_sindec, 
                     ei, exp_key) * self._atm_bckg.evaluate_flux(ei, atm_key)
@@ -202,6 +344,24 @@ class GenericSpatialTemplateAnalysis(Analysis):
     def _generate_astro_background_expectation(self, phi100, gamma, 
             exp_key):
         r'''
+        Function that allow the generation of astrophysical 
+        background from an unbroken power-law. Important e.g. 
+        for galactic studies
+
+        Parameters:
+        ---------------
+        phi100: float
+            flux normalisation at 100TeV
+        gamma: float
+            spectral index
+        exp_key: str
+            key of the detector network as defined in the
+            effective area class
+
+        Returns:
+        --------------
+        astro_bckg: array
+            astro background in each analysis bin
         '''
         eval_bins_sindec = self._yy_sdec.flatten()
         Ntot = np.array([(self._effective_areas.get_eff_area_values(eval_bins_sindec, 
@@ -217,7 +377,24 @@ class GenericSpatialTemplateAnalysis(Analysis):
 
     def _generate_background_expectation(self, atm_keys, astro_bckg=False):
         r'''
+        Function that generates the total background of 
+        the experiment
+
+        Parameters:
+        -----------------
+        atm_key: dict
+            keys of the atmospheric background leptons used
+        astro_bckg: bool | False
+            if True, astro bckg from a single power-law is added
+
+        Returns:
+        ----------------
+        bckg_values: dict
+            dict with arrays for each detector network,
+            with the arrays containing bckg expectations in each bin 
+
         '''
+
         atm_keys = np.atleast_1d(atm_keys)
         bckg_values = dict()
         for exp_key in self._effective_areas.exp_keys:
@@ -251,7 +428,8 @@ class GenericSpatialTemplateAnalysis(Analysis):
 
 
 class KRAgammaAnalysis(GenericSpatialTemplateAnalysis):
-    r'''
+    r''' Poisson template analysis using the KRAgamma neutrino emission model
+    as spatial and energetic template for the analysis
     '''
 
     def __init__(self, sindec_bins, ra_bins, log_ereco_bins, energy_smearing, 
@@ -259,6 +437,36 @@ class KRAgammaAnalysis(GenericSpatialTemplateAnalysis):
             phi100_astro=1.44e-18, gamma_astro=2.28, 
             norms=None):
         r'''
+        Parameters:
+        -----------------
+        sindec_bins: array
+            binning in sin(declination)
+        ra_bins: array
+            binning in right ascension
+        log_ereco_bins: array
+            binning in log reconstructed energy
+        energy_smearing: class
+            class instance that takes care of the conversion
+            between true and reconstructed energy
+        atm_bckg: class
+            class instance that allows the evaluation of 
+            atmospheric lepton fluxes.
+        effective_areas: class
+            class instance that contains the effective areas
+            for each experiment network
+        livetime: float | 1
+            livetime of the experiment in years
+        rng_seed: int | 0
+            seed for the random number generator used to 
+            generate trials
+        phi100_astro: float | 1.44e-18
+            flux normalisation at 100TeV for the extragalactic
+            background [1/(GeV cm^2 s sr)]
+        gamma_astro: float | 2.28
+            spectral index of the extragalactic background
+        norms: array | None
+            if not None, this specifies the sacn binning used for 
+            the normalisation of the KRAgamma model
         '''
         super(KRAgammaAnalysis, self).__init__(sindec_bins, ra_bins, log_ereco_bins,  
                 energy_smearing=energy_smearing, atm_bckg=atm_bckg, 
@@ -279,7 +487,14 @@ class KRAgammaAnalysis(GenericSpatialTemplateAnalysis):
 
 
     def _generate_signal_expectation_hist(self, norms):
-        r'''
+        r''' This function generates a histogram that contains
+        the signal expectation in every bin for every normalisation 
+        in norm
+
+        Parameters:
+        ----------------
+        norm: array
+            normalisations of the KRAgamma model
         '''
 
         kragamma_hist = self.signal_model._generate_KRAgamma_skymap(
@@ -303,57 +518,24 @@ class KRAgammaAnalysis(GenericSpatialTemplateAnalysis):
             self._signal_expectations[exp_key] = b[...,np.newaxis]* norms * self.lt
         return
 
-    def _generate_signal_expectation_hist_v2(self, norms):
-        r'''
-        '''
-
-        xx1, yy1 = np.meshgrid(self.ra_mids, self.sindec_mids, indexing='ij')
-        ra_width = self.ra_width[0]/2.
-        sindec_width = self.sindec_width[0]/2.
-        self._signal_expectations = dict()
-        res = dict()
-        for exp_key in self._effective_areas.exp_keys:
-            res[exp_key] = np.zeros((self._n_ereco,np.prod(self._xx_ra.shape),)\
-                    +norms.shape, dtype=float)
-        
-        for i, (xi,yi) in enumerate(zip(xx1.flatten(), yy1.flatten())):
-
-            ra_midsi = np.linspace(xi-ra_width, xi+ra_width, 4, endpoint=True)
-            sindec_midsi = np.linspace(yi-sindec_width, yi+sindec_width, 4, 
-                    endpoint=True)
-            pixel_sizes = self.pixel_sizes[0,0]
-
-
-            _xx1, _yy1 = np.meshgrid(ra_midsi, sindec_midsi, indexing='ij')
-            kragamma_hist = self.signal_model._generate_KRAgamma_skymap(
-                    ra_midsi, sindec_midsi, self._etrue_mids)
-            eval_bins_sindec = _yy1.flatten()
-
-            #self._signal_expectations = dict()
-            for exp_key in self._effective_areas.exp_keys:
-                xx0,yy0 = np.meshgrid(eval_bins_sindec, self._etrue_mids,
-                        indexing='ij')
-
-                effa = self._effective_areas.get_eff_area_values(xx0, 
-                        yy0, exp_key).reshape(_xx1.shape+(self._n_etrue,))
-
-                a = (pixel_sizes* effa*kragamma_hist*
-                        self._etrue_bin_width).reshape((np.prod(_xx1.shape),
-                        self._n_etrue))
-                b = np.dot(self._energy_smearing_matrix, a.T).reshape(
-                        (self._n_ereco,)+_xx1.shape)
-                res[exp_key][:,i,:] = np.sum(b[...,np.newaxis]* norms * self.lt, axis=(1,2)) \
-                        / np.prod(_xx1.shape)
-
-        for exp_key in self._effective_areas.exp_keys:
-            self._signal_expectations[exp_key] = res[exp_key].reshape((self._n_ereco,) \
-                    +self._xx_ra.shape+norms.shape )
-        return
 
 
     def _generate_signal_expectation(self, norm, exp_key=None, force_update=False):
-        r'''
+         r'''
+        Function that allows the evaluation of the 
+        signal expectation for the KRAgamma model
+
+        Parameters:
+        ----------------
+        norm: float
+            normalisation of the KRAgamma model
+        exp_key: str | None
+            if not None, only the signal for the given key
+            is returned
+        force_update: bool | False
+            if True, the signal histogram is regenerated
         '''
+
         if (self._signal_expectations is None) or \
                 force_update:
             self._generate_signal_expectation_hist(self._norms)
