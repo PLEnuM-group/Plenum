@@ -260,46 +260,56 @@ def _trans(ra, dec):
     r''' Transform ra and dec such that they can be plotted on a hammer skymap
     0h right side, 24h left side
     '''
-    x, y = np.pi-np.atleast_1d(ra), np.atleast_1d(dec)
+    try:
+        x, y = np.pi*u.rad - np.atleast_1d(ra), np.atleast_1d(dec)
+    except:
+        x, y = np.pi-np.atleast_1d(ra), np.atleast_1d(dec)
 
     return x, y
 
 
-def add_plane(ax, coords='ra', color='black', label='Galactic center/plane'):
+def add_plane(ax, coords='ra', color='black', label='Galactic center/plane', **kwargs):
+    in_deg = True if "transform" in kwargs else False
+
     c = SkyCoord(frame="galactic", l=0., b=0., unit='deg')
     gc = SkyCoord(l=0*u.degree, b=0*u.degree, frame='galactic')
-    _gc= gc.fk5
-    gc_ra = _gc.ra.rad
-    gc_dec = _gc.dec.rad
-
     if coords=='ra':
-        cra ,cdec = _trans(gc_ra, gc_dec)
+        cra, cdec = _trans(gc.fk5.ra, gc.fk5.dec)
     else:
-        cra ,cdec = gc_ra, gc_dec
-
-    ax.plot(cra, cdec, marker='o',ms=15, c=color, linestyle='dotted', label=label, 
-           alpha=0.8)
+        cra, cdec = gc.fk5.ra, gc.fk5.dec
+        
+    if in_deg:
+        cra, cdec = cra.deg, cdec.deg
+    else:
+        cra, cdec = cra.rad, cdec.rad
+        
+    ax.plot(
+        cra, cdec, marker='o',
+        ms=15, c=color, linestyle='dotted', 
+        label=label, alpha=0.8, **kwargs
+    )
 
     num2 = 50
-    gp_ra = np.zeros(num2)
-    gp_dec = np.zeros(num2)
-    for i,x_i in enumerate(np.linspace(0,360,num2)):
-        gc = SkyCoord(l=x_i*u.degree, b=0*u.degree, frame='galactic')
-        _gp= gc.fk5
-        gp_ra[i] = _gp.ra.rad
-        gp_dec[i] = _gp.dec.rad
+    gc = SkyCoord(
+        l=np.linspace(-np.pi, np.pi, num2)*u.rad, b=0*u.rad, frame='galactic'
+    )
+    if coords=='ra':
+        cra, cdec = _trans(gc.icrs.ra, gc.icrs.dec)
+    else:
+        cra, cdec = gc.icrs.ra, gc.icrs.dec
+    ind = np.argsort(cra)
+    cra, cdec = cra[ind], cdec[ind]
+    cra = cra.wrap_at("180d")
+    if in_deg:
+        cra, cdec = cra.deg, cdec.deg
+    else:
+        cra, cdec = cra.rad, cdec.rad
+    ax.plot(cra, cdec, marker='None', c=color, 
+       linestyle='dotted', linewidth=3, **kwargs)
+    return
 
 
-    ind = np.argmin(gp_dec[gp_ra>np.pi])
-    ind = np.where(gp_dec == gp_dec[gp_ra>0][ind])[0][0]
-    cra ,cdec = _trans(gp_ra, gp_dec)
-    ax.plot(np.append(cra[ind:],cra[:ind]), np.append(cdec[ind:],cdec[:ind]), marker='None', c=color, 
-       linestyle='dotted', linewidth=3)
-
-    return True
-
-
-def add_obj(ax, name, coords='ra', marker='o', c='red'):
+def add_obj(ax, name, coords='ra', marker='o', c='red', **kwargs):
     
     ras = {
         "txs": np.radians(77.36),
@@ -318,9 +328,11 @@ def add_obj(ax, name, coords='ra', marker='o', c='red'):
         _ra, _dec = _trans(ras[name], decs[name])
     else:
         _ra, _dec = ras[name], decs[name]
+    if "transform" in kwargs:
+        _ra, _dec = np.rad2deg(_ra), np.rad2deg(_dec)
         
     ax.plot(_ra, _dec, marker=marker, ms=15, c=c,
-       linestyle='None', label=labels[name])
+       linestyle='None', label=labels[name], **kwargs)
 
     return
 
