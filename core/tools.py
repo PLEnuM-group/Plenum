@@ -299,19 +299,30 @@ def add_plane(ax, coords='ra', color='black', label='Galactic center/plane'):
     return True
 
 
-def add_txs(ax, coords='ra', marker='o', c='red', label='TXS 0506+056'):
-    txs_ra = np.radians(77.36)
-    txs_dec = np.radians(5.69)
-
+def add_obj(ax, name, coords='ra', marker='o', c='red'):
+    
+    ras = {
+        "txs": np.radians(77.36),
+        "ngc": np.radians(40.67),
+    }
+    decs = {
+        "txs": np.radians(5.69),
+        "ngc": np.radians(-0.01),
+    }
+    labels = {
+        "txs": 'TXS 0506+056',
+        "ngc": 'NGC 1068'
+    }
+    
     if coords=='ra':
-        txs_ra, txs_dec = _trans(txs_ra, txs_dec)
+        _ra, _dec = _trans(ras[name], decs[name])
     else:
-        txs_ra, txs_dec = txs_ra, txs_dec
-    ax.plot(txs_ra, txs_dec, marker=marker,ms=15, c=c,
-       linestyle='None', label=label)
+        _ra, _dec = ras[name], decs[name]
+        
+    ax.plot(_ra, _dec, marker=marker, ms=15, c=c,
+       linestyle='None', label=labels[name])
 
     return
-
 
 def add_extended_plane(ax, color='black', ngrid=500, **kwargs):
     NSIDE = 2**6
