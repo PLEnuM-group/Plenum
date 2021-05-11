@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import scipy as sp
+import pandas as pd
 import pickle
 import matplotlib.colors as mc
 from matplotlib.colors import LogNorm
@@ -22,7 +23,8 @@ sns.set(
         'grid.color': "0.9",
         'mathtext.fontset': 'cm',
         'image.cmap': 'mako',
-        'savefig.format': 'pdf'
+        'savefig.format': 'pdf',
+        'savefig.dpi': 200,
     }
 )
 sns.set_palette("crest", n_colors=4)
@@ -55,3 +57,14 @@ def slightly_change_color(color, amount=0.2):
     c = colorsys.rgb_to_hls(*mc.to_rgb(c))
     ld = 0.1 if c[1]<=0.5 else -0.1
     return colorsys.hls_to_rgb(c[0]+amount, c[1] + ld, c[2])
+
+
+def change_color_ld(color, amount=0.2):
+    """ slightly change the color lightness/darkness"""
+    try:
+        c = mc.cnames[color]
+    except:
+        c = color
+    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+    c_new = np.clip(c[1] + amount, 0, 1)
+    return colorsys.hls_to_rgb(c[0], c_new, c[2])
