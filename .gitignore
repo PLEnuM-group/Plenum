@@ -1,5 +1,5 @@
-.ipynb_checkpoints/*-checkpoint.ipynb
 .ipynb_checkpoints/*
-notebooks/.ipynb_checkpoints
-notebooks/.ipynb_checkpoints/*
+*/.ipynb_checkpoints/*
+*/*/.ipynb_checkpoints/*
+plots
 __pycache__
