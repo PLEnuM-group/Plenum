@@ -331,8 +331,12 @@ def add_obj(ax, name, coords='ra', marker='o', c='red', **kwargs):
     if "transform" in kwargs:
         _ra, _dec = np.rad2deg(_ra), np.rad2deg(_dec)
         
-    ax.plot(_ra, _dec, marker=marker, ms=15, c=c,
-       linestyle='None', label=labels[name], **kwargs)
+    ax.plot(
+        _ra, _dec, marker=marker, ms=15, c=c,
+        linestyle='None', 
+        label=kwargs.pop("label", labels[name]),
+        **kwargs
+    )
 
     return
 
