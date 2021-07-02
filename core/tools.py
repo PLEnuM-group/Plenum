@@ -2,7 +2,6 @@
 # the Plenum notebooks
 import numpy as np
 import healpy as hp
-from PyAstronomy import pyasl
 from matplotlib.ticker import (AutoMinorLocator, FixedLocator, FuncFormatter,
                                MultipleLocator, NullLocator, LogLocator)
 
@@ -45,8 +44,36 @@ def ang_dist(src_ra, src_dec, ra, dec):
     
     return dist
 
+def getAngDist(ra1, dec1, ra2, dec2):
+    """
+    ### From PyAstronomy package ###
+    Calculate the angular distance between two coordinates.
 
+    Parameters
+    ----------
+    ra1 : float, array
+        Right ascension of the first object in degrees.
+    dec1 : float, array
+        Declination of the first object in degrees.
+    ra2 : float, array
+        Right ascension of the second object in degrees.
+    dec2 : float, array
+        Declination of the second object in degrees.
+    Returns
+    -------
+    Angle : float, array
+        The angular distance in DEGREES between the first
+        and second coordinate in the sky.
 
+    """  
+
+    delt_lon = (ra1 - ra2)*np.pi/180.
+    delt_lat = (dec1 - dec2)*np.pi/180.
+    # Haversine formula
+    dist = 2.0*np.arcsin( np.sqrt( np.sin(delt_lat/2.0)**2 + \
+         np.cos(dec1*np.pi/180.)*np.cos(dec2*np.pi/180.)*np.sin(delt_lon/2.0)**2 ) )  
+
+    return dist/np.pi*180.
 
 
 #convert ra, dec error to ungular uncertainty (this is just an approximation)
@@ -209,8 +236,9 @@ def add_event(ax, ra_i, dec_i, sigma_i, coords='ra', **kwargs):
     dec_bins = np.linspace(np.degrees(dec_i)-val, np.degrees(dec_i)+val, num=n)
     xx, yy =np.meshgrid(ra_bins, dec_bins, indexing='ij')
 
-    DIST = pyasl.getAngDist(xx,yy,
-                                np.degrees(ra_i),np.degrees(dec_i)) - np.degrees(sigma_i)
+    DIST = getAngDist(
+        xx, yy, np.rad2deg(ra_i), np.rad2deg(dec_i)
+    ) - np.rad2deg(sigma_i)
 
     c = kwargs.pop('color', 'black')
     d = np.zeros_like(DIST)
