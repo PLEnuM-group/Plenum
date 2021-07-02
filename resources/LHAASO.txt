@@ -1,0 +1,14 @@
+#Source name 	RA (deg)	dec (deg)	Significance above 100 TeV (x sigma)	Emax (PeV)	 Emax uncertainty -	Emax uncertainty +	Flux at 100 TeV (CU)	 Flux uncertainty
+source	ra	dec	significance	Emax	 Emax_uncertainty_minus	Emax_uncertainty_plus	Flux	Flux_uncertainty
+LHAASO J0534+2202	83.55	22.05 	17.8 	0.88 	0.11 	0.11 	1.00	0.14
+LHAASO J1825-1326	276.45	-13.45 	16.4 	0.42 	0.16 	0.16 	3.57	0.52
+LHAASO J1839-0545	279.95	-5.75 	7.7 	0.21 	0.05 	0.05 	0.70	0.18
+LHAASO J1843-0338	280.75	-3.65 	8.5 	0.26	0.10	0.16	0.73	0.17
+LHAASO J1849-0003	282.35	-0.05 	10.4 	0.35 	0.07 	0.07 	0.74	0.15
+LHAASO J1908+0621	287.05	6.35 	17.2 	0.44 	0.05 	0.05 	1.36	0.18
+LHAASO J1929+1745	292.25	17.75 	7.4 	0.71	0.07	0.16	0.38	0.09
+LHAASO J1956+2845	299.05	28.75 	7.4 	0.42	0.03	0.03 	0.41	0.09
+LHAASO J2018+3651	304.75	36.85 	10.4 	0.27	0.02	0.02 	0.50	0.10
+LHAASO J2032+4102	308.05	41.05 	10.5 	1.42	0.13	0.13 	0.54	0.10
+LHAASO J2108+5157	317.15	51.95 	8.3 	0.43	0.05	0.05 	0.38	0.09
+LHAASO J2226+6057	336.75	60.95 	13.6 	0.57	0.19	0.19 	1.05	0.16
