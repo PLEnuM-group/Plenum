@@ -2,6 +2,7 @@
 */.ipynb_checkpoints/*
 */*/.ipynb_checkpoints/*
 plots
+plots/*
 resources/GSF_spline_20171007.pkl.bz2
 resources/gaggero_KRAgamma_hardening_5e7_neutrino_COGalprop_HIGalprop_healpix.V2_hd5
 __pycache__
