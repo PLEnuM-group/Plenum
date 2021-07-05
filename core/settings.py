@@ -77,10 +77,6 @@ m77 = SkyCoord(40.67, -0.01, unit="deg", frame="icrs")
 def reset_palette(n_colors, pal="crest"):
     sns.set_palette(pal, n_colors=n_colors)
 
-def calc_mids(arr):
-    return (arr[1:] + arr[:-1]) * 0.5
-
-
 def slightly_change_color(color, amount=0.2):
     """ slightly change the color hue"""
     try:

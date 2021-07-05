@@ -15,9 +15,8 @@ def sigma2pval(sigma, one_sided=True):
     else: 
         return 1.-(norm.cdf(sigma)-norm.cdf(-sigma))
 
-
 def get_mids(bins, ext=False):
-    res = (bins[1:]+bins[:-1])/2.
+    res = (bins[1:] + bins[:-1]) * 0.5
     if ext==False:
         return res
     else:
