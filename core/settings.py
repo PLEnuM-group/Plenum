@@ -41,6 +41,13 @@ colors = [
     (0.024792120980593635, 0.4191425610223744, 0.39370216536046365),
     (0.713458847396123, 0.261074771588123, 0.29025904200122044)
 ]
+many_colors = ["0.8", "0.4", "0."]
+many_colors.extend(sns.cubehelix_palette(
+    start=0.9, rot=0, n_colors=3, light=0.8, dark=0.4, hue=1.5))
+many_colors.extend(sns.cubehelix_palette(
+    start=2.4, rot=0, n_colors=3, light=0.8, dark=0.4, hue=1.5))
+many_colors = np.array(many_colors)
+
 # define location of experiments
 # some plot settings
 poles = {

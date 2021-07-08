@@ -7,8 +7,10 @@ from matplotlib.ticker import (AutoMinorLocator, FixedLocator, FuncFormatter,
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-
 from scipy.stats import norm 
+
+
+
 def sigma2pval(sigma, one_sided=True):
     if one_sided:
         return norm.sf(sigma)
@@ -316,7 +318,7 @@ def add_plane(ax, coords='ra', color='black', label='Galactic center/plane', **k
         label=label, alpha=0.8, **kwargs
     )
 
-    num2 = 50
+    num2 = 150
     gc = SkyCoord(
         l=np.linspace(-np.pi, np.pi, num2)*u.rad, b=0*u.rad, frame='galactic'
     )
