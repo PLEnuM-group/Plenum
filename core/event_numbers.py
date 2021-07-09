@@ -85,6 +85,10 @@ for ii, gamma in tqdm(enumerate(np.round(np.arange(1.4, 3.6, step=0.1), decimals
         tt * u.radian,
         frame="icrs"
     )
+    inst_rel_events_ra_dec[gamma]["Plenum-1"] = np.zeros_like(pp)
+    inst_rel_events_ra_dec[gamma]["Plenum-2"] = np.zeros_like(pp)
+    rel_events_ra_dec[gamma]["Plenum-1"] = np.zeros_like(pp)
+    rel_events_ra_dec[gamma]["Plenum-2"] = np.zeros_like(pp)
     # loop over detectors
     for k, coord in poles.items():
         if "Plenum" in k: continue
@@ -100,9 +104,20 @@ for ii, gamma in tqdm(enumerate(np.round(np.arange(1.4, 3.6, step=0.1), decimals
         rel_events_ra_dec[gamma][k] = np.sum(inst_rel_events_ra_dec[gamma][k] / len(ra_val_mids), axis=1)
         rel_events_ra_dec[gamma][k] = rel_events_ra_dec[gamma][k][:,np.newaxis] \
                     * np.ones_like(np.atleast_2d(ra_vals))
+        if "Gen" in k:
+            inst_rel_events_ra_dec[gamma]["Plenum-2"] += inst_rel_events_ra_dec[gamma][k]
+            rel_events_ra_dec[gamma]["Plenum-2"] += rel_events_ra_dec[gamma][k]
+        elif "Ice" in k:
+            inst_rel_events_ra_dec[gamma]["Plenum-1"] += inst_rel_events_ra_dec[gamma][k]
+            rel_events_ra_dec[gamma]["Plenum-1"] += rel_events_ra_dec[gamma][k]
+        else:
+            inst_rel_events_ra_dec[gamma]["Plenum-1"] += inst_rel_events_ra_dec[gamma][k]
+            rel_events_ra_dec[gamma]["Plenum-1"] += rel_events_ra_dec[gamma][k]
+            inst_rel_events_ra_dec[gamma]["Plenum-2"] += inst_rel_events_ra_dec[gamma][k]
+            rel_events_ra_dec[gamma]["Plenum-2"] += rel_events_ra_dec[gamma][k]
 
 with open("../resources/rel_events_ra_dec.pckl", "wb") as f:
-    pickle.dump(rel_events_ra_dec, f)
+    pickle.dump((rel_events_ra_dec, ra_vals, dec_vals), f)
     
 with open("../resources/inst_rel_events_ra_dec.pckl", "wb") as f:
-    pickle.dump(inst_rel_events_ra_dec, f)
+    pickle.dump((inst_rel_events_ra_dec, ra_vals, dec_vals), f)
