@@ -1,7 +1,11 @@
 # This file contains a selection of functions that are used within 
 # the Plenum notebooks
 import numpy as np
-import healpy as hp
+try:
+    import healpy as hp
+except:
+    print("Could not import healpy.")
+    print("functions plot_area, add_catalog, and add_extended_plane will not work.")
 from matplotlib.ticker import (AutoMinorLocator, FixedLocator, FuncFormatter,
                                MultipleLocator, NullLocator, LogLocator)
 

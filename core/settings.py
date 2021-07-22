@@ -1,12 +1,14 @@
 import os
 import numpy as np
 import scipy as sp
-import pandas as pd
 import pickle
 import matplotlib.colors as mc
 from matplotlib.colors import LogNorm
-import colorsys
-from glob import glob
+try:
+    import colorsys
+except:
+    print("Could not import colorsys.")
+    colorsys = None
 import seaborn as sns
 from astropy.coordinates import SkyCoord
 import astropy.units as u
@@ -86,6 +88,9 @@ def reset_palette(n_colors, pal="crest"):
 
 def slightly_change_color(color, amount=0.2):
     """ slightly change the color hue"""
+    if not colorsys:
+        print("Cannot change color.")
+        return color
     try:
         c = mc.cnames[color]
     except:
@@ -97,6 +102,9 @@ def slightly_change_color(color, amount=0.2):
 
 def change_color_ld(color, amount=0.2):
     """ slightly change the color lightness/darkness"""
+    if not colorsys:
+        print("Cannot change color.")
+        return color
     try:
         c = mc.cnames[color]
     except:
