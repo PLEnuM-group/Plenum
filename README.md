@@ -1,4 +1,4 @@
-# PLE$\nu$M
+# PLEnuM
 This repository contains code that aims to 
 show the potential of a global neutrino telescope network.
 Potential analyses are illustrated in the available notebooks.
