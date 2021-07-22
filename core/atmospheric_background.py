@@ -7,7 +7,6 @@ import mceq_config as config
 from MCEq.core import MCEqRun
 import crflux.models as pm
 import pickle
-from tqdm import tqdm
 from scipy.interpolate import splrep, splev, RegularGridInterpolator
 
 # setup
@@ -38,7 +37,7 @@ for frac in all_component_names:
     flux_def[frac] = np.zeros((len(mceq.e_grid), len(angles)))
 
 # fluxes calculated for different angles
-for ti, theta in tqdm(enumerate(angles)):
+for ti, theta in enumerate(angles):
     mceq.set_theta_deg(theta)
     mceq.solve()
     

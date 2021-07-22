@@ -9,7 +9,11 @@ from scipy.interpolate import InterpolatedUnivariateSpline, RegularGridInterpola
 from aeff_calculations import aeff_eval_e_sd, get_aeff_and_binnings
 from tools import get_mids, _trans
 from settings import poles, E_NORM
-from tqdm import tqdm
+try:
+    from tqdm import tqdm
+except Exception as e:
+    print("Could not import tqdm. Please change iteration where it's used.")
+    raise e
 
 print("Calculate detection efficiencies")
 aeff_2d, log_ebins, ebins, sindec_bins, ra_bins = get_aeff_and_binnings("full")
