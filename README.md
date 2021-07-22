@@ -1,7 +1,10 @@
 # PLEnuM
 This repository contains code that aims to 
 show the potential of a global neutrino telescope network.
-Potential analyses are illustrated in the available notebooks.
+First studies are published as part of the ICRC2021 proceedings which 
+you can find at https://pos.sissa.it/395/1185/.
+Potential analyses as presented in the proceeding are illustrated in the jupyter notebooks.
+See also the proceedings for important references.
 
 The basic assumption of this study is, that all new telescopes 
 included in what we call the PLENUM network behave similar to IceCube.
