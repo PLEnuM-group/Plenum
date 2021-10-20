@@ -1,12 +1,14 @@
 import os
 import numpy as np
 import scipy as sp
-import pandas as pd
 import pickle
 import matplotlib.colors as mc
 from matplotlib.colors import LogNorm
-import colorsys
-from glob import glob
+try:
+    import colorsys
+except:
+    print("Could not import colorsys.")
+    colorsys = None
 import seaborn as sns
 from astropy.coordinates import SkyCoord
 import astropy.units as u
@@ -41,6 +43,13 @@ colors = [
     (0.024792120980593635, 0.4191425610223744, 0.39370216536046365),
     (0.713458847396123, 0.261074771588123, 0.29025904200122044)
 ]
+many_colors = ["0.8", "0.4", "0."]
+many_colors.extend(sns.cubehelix_palette(
+    start=0.9, rot=0, n_colors=3, light=0.8, dark=0.4, hue=1.5))
+many_colors.extend(sns.cubehelix_palette(
+    start=2.4, rot=0, n_colors=3, light=0.8, dark=0.4, hue=1.5))
+many_colors = np.array(many_colors)
+
 # define location of experiments
 # some plot settings
 poles = {
@@ -71,18 +80,17 @@ PHI_0 = 1.0E-18 # * (E/100 TeV)^gamma / GeV / sr / cm^2 / s
 PHI_ASTRO = PHI_ASTRO_FACTOR * PHI_0 # * (E/100 TeV)^gamma / GeV / sr / cm^2 / s
 
 sgr_a = SkyCoord(0, 0, unit="rad", frame="galactic")
-txs = SkyCoord(77.36, 5.69, unit="deg", frame="icrs")
-m77 = SkyCoord(40.67, -0.01, unit="deg", frame="icrs")
+txs0506 = SkyCoord(77.36, 5.69, unit="deg", frame="icrs")
+ngc1068 = SkyCoord(40.67, -0.01, unit="deg", frame="icrs")
 
 def reset_palette(n_colors, pal="crest"):
     sns.set_palette(pal, n_colors=n_colors)
 
-def calc_mids(arr):
-    return (arr[1:] + arr[:-1]) * 0.5
-
-
 def slightly_change_color(color, amount=0.2):
     """ slightly change the color hue"""
+    if not colorsys:
+        print("Cannot change color.")
+        return color
     try:
         c = mc.cnames[color]
     except:
@@ -94,6 +102,9 @@ def slightly_change_color(color, amount=0.2):
 
 def change_color_ld(color, amount=0.2):
     """ slightly change the color lightness/darkness"""
+    if not colorsys:
+        print("Cannot change color.")
+        return color
     try:
         c = mc.cnames[color]
     except:

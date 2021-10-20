@@ -1,23 +1,28 @@
 # This file contains a selection of functions that are used within 
 # the Plenum notebooks
 import numpy as np
-import healpy as hp
+try:
+    import healpy as hp
+except:
+    print("Could not import healpy.")
+    print("functions plot_area, add_catalog, and add_extended_plane will not work.")
 from matplotlib.ticker import (AutoMinorLocator, FixedLocator, FuncFormatter,
                                MultipleLocator, NullLocator, LogLocator)
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-
 from scipy.stats import norm 
+
+
+
 def sigma2pval(sigma, one_sided=True):
     if one_sided:
         return norm.sf(sigma)
     else: 
         return 1.-(norm.cdf(sigma)-norm.cdf(-sigma))
 
-
 def get_mids(bins, ext=False):
-    res = (bins[1:]+bins[:-1])/2.
+    res = (bins[1:] + bins[:-1]) * 0.5
     if ext==False:
         return res
     else:
@@ -317,7 +322,7 @@ def add_plane(ax, coords='ra', color='black', label='Galactic center/plane', **k
         label=label, alpha=0.8, **kwargs
     )
 
-    num2 = 50
+    num2 = 150
     gc = SkyCoord(
         l=np.linspace(-np.pi, np.pi, num2)*u.rad, b=0*u.rad, frame='galactic'
     )
