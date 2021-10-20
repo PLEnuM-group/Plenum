@@ -24,7 +24,7 @@ sindec_width = np.diff(sindec_bins)
 ra_width = np.diff(ra_bins)
 
 
-### calculate raw neutrino rate ~ detection efficiency per bin in sindec
+### calculate raw neutrino rate ~ detection efficiency
 # Res = integral dE ( A_eff * (E/GeV)**(-gamma) ) / delta sindec
 tcks = dict()
 for ii, gamma in enumerate(np.round(np.arange(1.4, 3.6, step=0.1), decimals=1)):
