@@ -10,7 +10,9 @@ Pipfile
 Pipfile.lock
 icecube_10year_ps/
 notebooks/Untitled.ipynb
+plenum_resources.tgz
 resources/detection_efficiencies.pckl
 resources/inst_rel_events_ra_dec.pckl
 resources/rel_events_ra_dec.pckl
 resources/ratio_IC_IC2.txt
+.vscode/settings.json
