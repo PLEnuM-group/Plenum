@@ -23,7 +23,7 @@ many_colors.extend(
 many_colors.extend(
     sns.cubehelix_palette(start=2.4, rot=0, n_colors=3, light=0.8, dark=0.4, hue=1.5)
 )
-many_colors = np.array(many_colors)
+many_colors = np.array(many_colors, dtype=object)
 
 # define location of experiments
 # some plot settings
