@@ -10,31 +10,6 @@ import seaborn as sns
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 
-import warnings
-
-warnings.filterwarnings("ignore")
-
-matplotlib = sns.mpl
-plt = matplotlib.pyplot
-sns.set(
-    context="paper",
-    style="ticks",
-    font="serif",
-    font_scale=2,
-    rc={
-        "font.family": "serif",
-        "lines.linewidth": 2,
-        "axes.grid": True,
-        "grid.color": "0.9",
-        "mathtext.fontset": "cm",
-        "image.cmap": "mako",
-        "savefig.format": "pdf",
-        "savefig.dpi": 200,
-    },
-)
-sns.set_palette("Set2", n_colors=4)
-
-# define some cool line colors
 colors = [
     (0.4287136896080445, 0.8230641296498253, 0.7976237339879146),
     (0.17544617305706944, 0.6466723383995561, 0.6162725242360733),
