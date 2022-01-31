@@ -18,3 +18,4 @@ resources/ratio_IC_IC2.txt
 .vscode/settings.json
 core/plenum.egg-info
 core/plenum.egg-info/*
+notebooks/Untitled.ipynb

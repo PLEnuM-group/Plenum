@@ -2,7 +2,7 @@ figure.figsize: 8.0, 5.5
 axes.labelsize: 15
 axes.titlesize: 15
 axes.prop_cycle: cycler('color', [(0.2213631, 0.16471913, 0.33041431), (0.22413977, 0.36487341, 0.60994938), (0.20431921, 0.59140842, 0.66300179), (0.3759816, 0.80950627, 0.67641393)])
-image.cmap: viridis
+image.cmap: mako
 xtick.labelsize: 15
 ytick.labelsize: 15
 legend.fontsize: 15
