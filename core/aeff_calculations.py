@@ -91,7 +91,7 @@ def calc_energy_smearing():
     # Calculate energy smearing
     # this takes a couple of seconds
     public_data_hist = np.genfromtxt(
-        "../icecube_10year_ps/irfs/IC86_II_smearing.csv", skip_header=1
+        "../resources/IC86_II_smearing.csv", skip_header=1
     )
     log_sm_emids = (public_data_hist[:, 0] + public_data_hist[:, 1]) / 2.0
     log_sm_ereco_mids = (public_data_hist[:, 4] + public_data_hist[:, 5]) / 2.0
@@ -115,7 +115,7 @@ def energy_smearing(ematrix, ev):
 if __name__ == "__main__":
     # get all info from data release first
     d_public = np.genfromtxt(
-        "../icecube_10year_ps/irfs/IC86_II_effectiveArea.csv", skip_header=1
+        "../resources/IC86_II_effectiveArea.csv", skip_header=1
     )
     # log10(E_nu/GeV)_min log10(E_nu/GeV)_max
     # Dec_nu_min[deg] Dec_nu_max[deg]
