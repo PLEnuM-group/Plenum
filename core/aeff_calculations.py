@@ -87,7 +87,7 @@ def get_aeff_and_binnings(key="full", verbose=False):
     return aeff_2d, log_ebins, ebins, sindec_bins, ra_bins
 
 
-def calc_energy_smearing():
+def calc_energy_smearing(ebins):
     # Calculate energy smearing
     # this takes a couple of seconds
     public_data_hist = np.genfromtxt(
@@ -97,7 +97,8 @@ def calc_energy_smearing():
     log_sm_ereco_mids = (public_data_hist[:, 4] + public_data_hist[:, 5]) / 2.0
     fractional_event_counts = public_data_hist[:, 10]
 
-    eri = get_mids(np.arange(0.5, 9, 0.2))
+    ereco_bins = np.arange(0.5, 9, 0.2)
+    eri = get_mids(ereco_bins)
     log_emids = get_mids(np.log10(ebins))
     ee, rr = np.meshgrid(log_emids, eri)
 
@@ -105,7 +106,7 @@ def calc_energy_smearing():
         (log_sm_emids, log_sm_ereco_mids), weights=fractional_event_counts
     )
     # has shape ereco x etrue
-    return e_ereco_kdes([ee.flatten(), rr.flatten()]).reshape(len(eri), len(log_emids))
+    return e_ereco_kdes([ee.flatten(), rr.flatten()]).reshape(len(eri), len(log_emids)), ereco_bins
 
 
 def energy_smearing(ematrix, ev):
@@ -210,7 +211,6 @@ if __name__ == "__main__":
         pickle.dump((np.log10(ebins), sindec_bins, aeff_i_full), f)
 
     print("Calculate energy smearing...")
-    kvals = calc_energy_smearing()
     with open("../resources/energy_smearing_kde.pckl", "wb") as f:
-        pickle.dump(kvals, f)
+        pickle.dump(calc_energy_smearing(ebins), f)
     print("finished!")

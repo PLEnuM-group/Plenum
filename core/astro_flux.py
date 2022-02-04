@@ -4,7 +4,7 @@ from aeff_calculations import energy_smearing
 
 # energy smearing matrix
 with open("../resources/energy_smearing_kde.pckl", "rb") as f:
-    kvals = pickle.load(f)
+    kvals, logE_reco_bins = pickle.load(f)
 # normalize per bin in true energy
 normed_kvals = kvals / np.sum(kvals, axis=0)
 
