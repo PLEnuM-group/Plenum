@@ -13,15 +13,32 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from scipy.stats import norm 
 
-
+def sort_contour(xvals, yvals):
+    """ Take the coordinates of a closed contour and sort them properly for plotting """
+    # center around (0, 0)
+    x_cms = np.mean(xvals)
+    y_cms = np.mean(yvals)
+    # calculate the angle for sorting
+    angles = np.arctan2(yvals-y_cms, xvals-x_cms)
+    # sorting indices by angle
+    indx = np.argsort(angles)
+    # get the sorted coordinates
+    xsorted = xvals[indx]
+    ysorted = yvals[indx]
+    # close the contour
+    xsorted = np.concatenate([xsorted, [xsorted[0]]])
+    ysorted = np.concatenate([ysorted, [ysorted[0]]])
+    return xsorted, ysorted
 
 def sigma2pval(sigma, one_sided=True):
+    """ Translate a sigma value to a p-value, one_sided or two_sided """
     if one_sided:
         return norm.sf(sigma)
     else: 
         return 1.-(norm.cdf(sigma)-norm.cdf(-sigma))
 
 def get_mids(bins, ext=False):
+    """ Calculate the bin mids from an array of bins """
     res = (bins[1:] + bins[:-1]) * 0.5
     if ext==False:
         return res
@@ -31,6 +48,7 @@ def get_mids(bins, ext=False):
 
 # angular distance between two points on a skymap
 def ang_dist(src_ra, src_dec, ra, dec):
+    """ Calculate the angular distance between a source/sources and a set of angular coordinates"""
     # convert src_ra, dec to numpy arrays if not already done
     src_ra = np.atleast_1d(src_ra)[:, np.newaxis]
     src_dec = np.atleast_1d(src_dec)[:, np.newaxis]
