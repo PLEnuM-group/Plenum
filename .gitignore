@@ -19,3 +19,4 @@ resources/ratio_IC_IC2.txt
 core/plenum.egg-info
 core/plenum.egg-info/*
 notebooks/Untitled.ipynb
+resources/*_contour.txt

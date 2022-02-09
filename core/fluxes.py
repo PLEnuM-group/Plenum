@@ -311,3 +311,28 @@ for shape in shape_params:
 # alternative: give it the truth to supress minimizer errors
 # for shape in shape_params:
 #    shape_params[shape]["guess"] = deepcopy(shape_params[shape]["baseline"])
+
+def plot_spectrum(energy, events, labels, title, f, ax, **kwargs):
+    """ Make a step-like plot of energy spectrum """
+    ls = kwargs.pop("ls", ["-"] * len(events))
+    color = kwargs.pop("color", [None] * len(events))
+    ylim = kwargs.pop("ylim", (0.1, 3E4))
+    xlim = kwargs.pop("xlim", (1.8, 9))
+    ylabel = kwargs.pop("ylabel", r"# events")
+    xlabel = kwargs.pop("xlabel", r"$E_{\mu \, \rm reco}$/GeV")
+    
+    for i, (ev, lab) in enumerate(zip(events, labels)):
+        ax.plot(
+            energy, ev, drawstyle="steps-mid", label=lab, 
+            ls=ls[i],
+            color=color[i],
+        )
+    ax.legend()
+    ax.set_title(title)
+    ax.set_yscale("log")
+    ax.set_ylim(ylim)
+    ax.set_xlim(xlim)
+    ax.set_ylabel(ylabel)
+    ax.set_xlabel(xlabel)
+    f.tight_layout()
+    return f, ax
