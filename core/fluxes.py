@@ -15,12 +15,13 @@ def atmo_background(aeff_factor, spl_vals, smear_energy=True):
     else:
         return aeff_factor * spl_vals
 
+
 ## Adapted from Mauricio's fluxes
 
 # These are the basic shapes
 def gaussian(x, mu, sigma):
     """Not normalized, then parameters are easier to interpret"""
-    return np.exp(-((x - mu) ** 2) / (2 * sigma ** 2))  # /(np.sqrt(2*np.pi) * sigma)
+    return np.exp(-((x - mu) ** 2) / (2 * sigma**2))  # /(np.sqrt(2*np.pi) * sigma)
 
 
 def power_law(energy, e_scale, gamma, phi0):
@@ -43,14 +44,14 @@ def sigmoid(fraction_depletion, growth_rate, energy, energy_nu_trans):
 
 
 # combine basic shapes to actual fluxes
-def astro_flux(shape, aeff_factor, emids, enorm, *args, smear_energy=True):
+def astro_flux(shape, aeff_factor, emids, enorm, *args, smear_energy=True, phi_0=PHI_0):
     """
     Wrapper for different astro flux shapes to put into TS minimizer.
     Possible shapes and their parameters:
 
     ° powerlaw:
         args[0]: gamma
-        args[1]: phi scaling (phi_0 will be 1E-18 * phi scaling)
+        args[1]: phi scaling (phi normalization will be phi_0 * phi scaling)
 
     ° double powerlaw:
         args[0]: gamma_1 (E < E_Break)
@@ -86,14 +87,14 @@ def astro_flux(shape, aeff_factor, emids, enorm, *args, smear_energy=True):
         _gamma_astro = args[0]
         _phi_astro_scaling = args[1]
         tmp = aeff_factor * power_law(
-            emids, enorm, _gamma_astro, PHI_0 * _phi_astro_scaling
+            emids, enorm, _gamma_astro, phi_0 * _phi_astro_scaling
         )
 
     if "double" in shape:
         _gamma_2 = args[2]
         _E_break = np.power(10, args[3])
         phi_2 = (
-            PHI_0
+            phi_0
             * _phi_astro_scaling
             * (_E_break / enorm) ** (-_gamma_astro + _gamma_2)
         )
@@ -129,7 +130,7 @@ def astro_flux(shape, aeff_factor, emids, enorm, *args, smear_energy=True):
         _phi_astro_scaling = args[1]
         _beta_astro = args[2]
         index = parabola_index(_alpha_astro, _beta_astro, emids, enorm)
-        tmp = aeff_factor * power_law(emids, enorm, index, PHI_0 * _phi_astro_scaling)
+        tmp = aeff_factor * power_law(emids, enorm, index, phi_0 * _phi_astro_scaling)
     ## energy smearing
     if smear_energy:
         tmp = energy_smearing(normed_kvals, tmp)
