@@ -8,8 +8,12 @@ with open("../resources/energy_smearing_kde.pckl", "rb") as f:
 # normalize per bin in true energy
 normed_kvals = kvals / np.sum(kvals, axis=0)
 
+# improved smearing matrix
+with open("../resources/improved_energy_smearing_kde.pckl", "rb") as f:
+    improved_normed_kvals, _ = pickle.load(f)
+
 # atmospheric backgound smearing
-def atmo_background(aeff_factor, spl_vals, smear_energy=True):
+def atmo_background(aeff_factor, spl_vals, smear_energy=True, normed_kvals=normed_kvals):
     if smear_energy:
         return energy_smearing(normed_kvals, aeff_factor * spl_vals)
     else:
@@ -44,7 +48,7 @@ def sigmoid(fraction_depletion, growth_rate, energy, energy_nu_trans):
 
 
 # combine basic shapes to actual fluxes
-def astro_flux(shape, aeff_factor, emids, enorm, *args, smear_energy=True, phi_0=PHI_0):
+def astro_flux(shape, aeff_factor, emids, enorm, *args, smear_energy=True, phi_0=PHI_0, normed_kvals=normed_kvals):
     """
     Wrapper for different astro flux shapes to put into TS minimizer.
     Possible shapes and their parameters:
