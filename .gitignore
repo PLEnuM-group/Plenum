@@ -20,3 +20,4 @@ core/plenum.egg-info
 core/plenum.egg-info/*
 notebooks/Untitled.ipynb
 resources/*_contour.txt
+notebooks/basic_pointlike_spectral_analysis_dev.ipynb
