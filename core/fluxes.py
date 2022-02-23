@@ -13,7 +13,9 @@ with open("../resources/improved_energy_smearing_kde.pckl", "rb") as f:
     improved_normed_kvals, _ = pickle.load(f)
 
 # atmospheric backgound smearing
-def atmo_background(aeff_factor, spl_vals, smear_energy=True, normed_kvals=normed_kvals):
+def atmo_background(
+    aeff_factor, spl_vals, smear_energy=True, normed_kvals=normed_kvals
+):
     if smear_energy:
         return energy_smearing(normed_kvals, aeff_factor * spl_vals)
     else:
@@ -21,7 +23,6 @@ def atmo_background(aeff_factor, spl_vals, smear_energy=True, normed_kvals=norme
 
 
 ## Adapted from Mauricio's fluxes
-
 # These are the basic shapes
 def gaussian(x, mu, sigma):
     """Not normalized, then parameters are easier to interpret"""
@@ -48,7 +49,16 @@ def sigmoid(fraction_depletion, growth_rate, energy, energy_nu_trans):
 
 
 # combine basic shapes to actual fluxes
-def astro_flux(shape, aeff_factor, emids, enorm, *args, smear_energy=True, phi_0=PHI_0, normed_kvals=normed_kvals):
+def astro_flux(
+    shape,
+    aeff_factor,
+    emids,
+    enorm,
+    *args,
+    smear_energy=True,
+    phi_0=PHI_0,
+    normed_kvals=normed_kvals,
+):
     """
     Wrapper for different astro flux shapes to put into TS minimizer.
     Possible shapes and their parameters:
@@ -57,16 +67,21 @@ def astro_flux(shape, aeff_factor, emids, enorm, *args, smear_energy=True, phi_0
         args[0]: gamma
         args[1]: phi scaling (phi normalization will be phi_0 * phi scaling)
 
+    ° powerlaw * cutoff:
+        args[0]: gamma
+        args[1]: phi scaling
+        args[2]: cutoff energy
+
+    ° log-parabola:
+        args[0]: alpha parameter
+        args[1]: phi scaling
+        args[2]: beta parameter
+
     ° double powerlaw:
         args[0]: gamma_1 (E < E_Break)
         args[1]: phi scaling
         args[2]: gamma_2 (E >= E_Break)
         args[3]: E_Break
-
-    ° powerlaw * cutoff:
-        args[0]: gamma
-        args[1]: phi scaling
-        args[2]: cutoff energy
 
     ° powerlaw * dip/bump:
         args[0]: gamma
@@ -81,11 +96,6 @@ def astro_flux(shape, aeff_factor, emids, enorm, *args, smear_energy=True, phi_0
         args[2]: fraction of depletion
         args[3]: growth rate
         args[4]: transition energy
-
-    ° log-parabola:
-        args[0]: alpha parameter
-        args[1]: phi scaling
-        args[2]: beta parameter
     """
     if "powerlaw" in shape:
         _gamma_astro = args[0]
@@ -141,6 +151,7 @@ def astro_flux(shape, aeff_factor, emids, enorm, *args, smear_energy=True, phi_0
     return tmp
 
 
+### some generic shape parameters used in the diffuse-style analysis
 shape_params = {
     # parameters from https://arxiv.org/abs/1908.09551
     "powerlaw": {
@@ -316,18 +327,22 @@ for shape in shape_params:
 # for shape in shape_params:
 #    shape_params[shape]["guess"] = deepcopy(shape_params[shape]["baseline"])
 
+
 def plot_spectrum(energy, events, labels, title, f, ax, **kwargs):
-    """ Make a step-like plot of energy spectrum """
+    """Make a step-like plot of energy spectrum"""
     ls = kwargs.pop("ls", ["-"] * len(events))
     color = kwargs.pop("color", [None] * len(events))
-    ylim = kwargs.pop("ylim", (0.1, 3E4))
+    ylim = kwargs.pop("ylim", (0.1, 3e4))
     xlim = kwargs.pop("xlim", (1.8, 9))
     ylabel = kwargs.pop("ylabel", r"# events")
     xlabel = kwargs.pop("xlabel", r"$E_{\mu \, \rm reco}$/GeV")
-    
+
     for i, (ev, lab) in enumerate(zip(events, labels)):
         ax.plot(
-            energy, ev, drawstyle="steps-mid", label=lab, 
+            energy,
+            ev,
+            drawstyle="steps-mid",
+            label=lab,
             ls=ls[i],
             color=color[i],
         )
