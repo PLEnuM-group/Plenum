@@ -8,10 +8,6 @@ with open("../resources/energy_smearing_kde.pckl", "rb") as f:
 # normalize per bin in true energy
 normed_kvals = kvals / np.sum(kvals, axis=0)
 
-# improved smearing matrix
-with open("../resources/improved_energy_smearing_kde.pckl", "rb") as f:
-    improved_normed_kvals, _ = pickle.load(f)
-
 # atmospheric backgound smearing
 def atmo_background(
     aeff_factor, spl_vals, smear_energy=True, normed_kvals=normed_kvals
