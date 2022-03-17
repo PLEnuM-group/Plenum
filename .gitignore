@@ -21,3 +21,12 @@ core/plenum.egg-info/*
 notebooks/Untitled.ipynb
 resources/*_contour.txt
 notebooks/basic_pointlike_spectral_analysis_dev.ipynb
+resources/idealized_artificial_energy_smearing_kde.pckl
+resources/improved_0.1_artificial_energy_smearing_kde.pckl
+resources/improved_0.2_artificial_energy_smearing_kde.pckl
+resources/improved_0.05_artificial_energy_smearing_kde.pckl
+resources/improved_0.5_artificial_energy_smearing_kde.pckl
+resources/improved_10_artificial_energy_smearing_kde.pckl
+resources/artificial_energy_smearing_kde.pckl
+.~lock.ngc_outline.odt#
+ngc_outline.odt

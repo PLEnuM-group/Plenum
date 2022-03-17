@@ -97,7 +97,7 @@ def calc_energy_smearing(ebins):
     log_sm_ereco_mids = (public_data_hist[:, 4] + public_data_hist[:, 5]) / 2.0
     fractional_event_counts = public_data_hist[:, 10]
 
-    ereco_bins = np.arange(0.5, 9, 0.2)
+    ereco_bins = np.arange(0.5, 10.3, step=0.2)
     eri = get_mids(ereco_bins)
     log_emids = get_mids(np.log10(ebins))
     ee, rr = np.meshgrid(log_emids, eri)
