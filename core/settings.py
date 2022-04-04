@@ -10,7 +10,8 @@ import seaborn as sns
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 import warnings
-warnings.filterwarnings('ignore')
+
+warnings.filterwarnings("ignore")
 
 colors = [
     (0.4287136896080445, 0.8230641296498253, 0.7976237339879146),
