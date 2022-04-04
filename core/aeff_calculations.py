@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import numpy as np
 import pickle
 import astropy.units as u
@@ -90,9 +88,7 @@ def get_aeff_and_binnings(key="full", verbose=False):
 def calc_energy_smearing(ebins):
     # Calculate energy smearing
     # this takes a couple of seconds
-    public_data_hist = np.genfromtxt(
-        "../resources/IC86_II_smearing.csv", skip_header=1
-    )
+    public_data_hist = np.genfromtxt("../resources/IC86_II_smearing.csv", skip_header=1)
     log_sm_emids = (public_data_hist[:, 0] + public_data_hist[:, 1]) / 2.0
     log_sm_ereco_mids = (public_data_hist[:, 4] + public_data_hist[:, 5]) / 2.0
     fractional_event_counts = public_data_hist[:, 10]
@@ -106,7 +102,10 @@ def calc_energy_smearing(ebins):
         (log_sm_emids, log_sm_ereco_mids), weights=fractional_event_counts
     )
     # has shape ereco x etrue
-    return e_ereco_kdes([ee.flatten(), rr.flatten()]).reshape(len(eri), len(log_emids)), ereco_bins
+    return (
+        e_ereco_kdes([ee.flatten(), rr.flatten()]).reshape(len(eri), len(log_emids)),
+        ereco_bins,
+    )
 
 
 def energy_smearing(ematrix, ev):
@@ -115,9 +114,7 @@ def energy_smearing(ematrix, ev):
 
 if __name__ == "__main__":
     # get all info from data release first
-    d_public = np.genfromtxt(
-        "../resources/IC86_II_effectiveArea.csv", skip_header=1
-    )
+    d_public = np.genfromtxt("../resources/IC86_II_effectiveArea.csv", skip_header=1)
     # log10(E_nu/GeV)_min log10(E_nu/GeV)_max
     # Dec_nu_min[deg] Dec_nu_max[deg]
     # A_Eff[cm^2]
