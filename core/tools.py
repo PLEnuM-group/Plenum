@@ -15,6 +15,26 @@ from scipy.stats import norm
 from scipy.interpolate import UnivariateSpline
 
 
+def array_source_interp(dec, array, sindec_mids):
+    low_ind = np.digitize(np.sin(dec), sindec_mids)
+
+    if low_ind >= len(sindec_mids):
+        # print("end of range")
+        array_interp = array[:, -1]
+    elif low_ind == 0:
+        # print("low end range")
+        array_interp = array[:, low_ind]
+    else:
+        array_interp = np.zeros(len(array))
+        for i in range(len(array)):
+            array_interp[i] = np.interp(
+                np.sin(dec),
+                [sindec_mids[low_ind - 1], sindec_mids[low_ind]],
+                [array[i, low_ind - 1], array[i, low_ind]],
+            )
+    return array_interp
+
+
 def sort_contour(xvals, yvals):
     """Take the coordinates of a closed contour and sort them properly for plotting"""
     # center around (0, 0)
