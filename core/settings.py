@@ -13,18 +13,19 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+linestyles = ["-", "--", "-.", ":"]
 colors = [
     (0.4287136896080445, 0.8230641296498253, 0.7976237339879146),
     (0.17544617305706944, 0.6466723383995561, 0.6162725242360733),
     (0.024792120980593635, 0.4191425610223744, 0.39370216536046365),
     (0.713458847396123, 0.261074771588123, 0.29025904200122044),
 ]
-many_colors = ["0.8", "0.4", "0."]
+many_colors = ["0.7", "0.4", "0."]
 many_colors.extend(
-    sns.cubehelix_palette(start=0.9, rot=0, n_colors=3, light=0.8, dark=0.4, hue=1.5)
+    sns.cubehelix_palette(start=0.9, rot=0, n_colors=3, light=0.7, dark=0.3, hue=1.5)
 )
 many_colors.extend(
-    sns.cubehelix_palette(start=2.4, rot=0, n_colors=3, light=0.8, dark=0.4, hue=1.5)
+    sns.cubehelix_palette(start=2.4, rot=0, n_colors=3, light=0.7, dark=0.3, hue=1.5)
 )
 many_colors = np.array(many_colors, dtype=object)
 
@@ -37,6 +38,7 @@ poles = {
         "color": "k",
         "ls": "-",
         "label": "IceCube",
+        "marker": "d",
     },
     "Gen-2": {
         "lon": 1 * u.deg,
@@ -44,30 +46,39 @@ poles = {
         "color": "gray",
         "ls": "-.",
         "label": "IceCube x 7.5",
+        "marker": "d",
     },
     "P-ONE": {
         "lon": -123.3656 * u.deg,
         "lat": 48.4284 * u.deg,
-        "color": colors[0],
+        "color": colors[2],
         "ls": "--",
         "label": "at P-ONE location",
+        "marker": "v",
     },
     "KM3NeT": {
         "lon": (16 + 6 / 60) * u.deg,
         "lat": (36 + 16 / 60) * u.deg,
-        "color": colors[1],
+        "color": colors[0],
         "ls": "--",
         "label": "at KM3NeT location",
+        "marker": "d",
     },
     "Baikal-GVD": {
         "lon": 108.1650 * u.deg,
         "lat": 53.5587 * u.deg,
-        "color": colors[2],
+        "color": colors[1],
         "ls": "--",
         "label": "at GVD location",
+        "marker": "d",
     },
-    "Plenum-1": {"color": "#a50000", "ls": "-", "label": r"PLE$\nu$M-1"},
-    "Plenum-2": {"color": "#a50000", "ls": "-.", "label": r"PLE$\nu$M-2"},
+    "Plenum-1": {"color": "#339999", "ls": "-", "label": r"PLE$\nu$M-1", "marker": "s"},
+    "Plenum-2": {
+        "color": "#a50000",
+        "ls": "-.",
+        "label": r"PLE$\nu$M-2",
+        "marker": "o",
+    },
 }
 
 

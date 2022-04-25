@@ -84,28 +84,28 @@ def get_aeff_and_binnings(key="full", verbose=False):
         print(len(ra_bins) - 1, "RA bins")
     return aeff_2d, log_ebins, ebins, sindec_bins, ra_bins
 
-
-def calc_energy_smearing(ebins):
-    # Calculate energy smearing
-    # this takes a couple of seconds
-    public_data_hist = np.genfromtxt("../resources/IC86_II_smearing.csv", skip_header=1)
-    log_sm_emids = (public_data_hist[:, 0] + public_data_hist[:, 1]) / 2.0
-    log_sm_ereco_mids = (public_data_hist[:, 4] + public_data_hist[:, 5]) / 2.0
-    fractional_event_counts = public_data_hist[:, 10]
-
-    ereco_bins = np.arange(0.5, 10.3, step=0.2)
-    eri = get_mids(ereco_bins)
-    log_emids = get_mids(np.log10(ebins))
-    ee, rr = np.meshgrid(log_emids, eri)
-
-    e_ereco_kdes = gaussian_kde(
-        (log_sm_emids, log_sm_ereco_mids), weights=fractional_event_counts
-    )
-    # has shape ereco x etrue
-    return (
-        e_ereco_kdes([ee.flatten(), rr.flatten()]).reshape(len(eri), len(log_emids)),
-        ereco_bins,
-    )
+## moved to 'tweak_energy_resolution.ipynb'
+# def calc_energy_smearing(ebins):
+#     # Calculate energy smearing
+#     # this takes a couple of seconds
+#     public_data_hist = np.genfromtxt("../resources/IC86_II_smearing.csv", skip_header=1)
+#     log_sm_emids = (public_data_hist[:, 0] + public_data_hist[:, 1]) / 2.0
+#     log_sm_ereco_mids = (public_data_hist[:, 4] + public_data_hist[:, 5]) / 2.0
+#     fractional_event_counts = public_data_hist[:, 10]
+# 
+#     ereco_bins = np.arange(0.5, 10.3, step=0.2)
+#     eri = get_mids(ereco_bins)
+#     log_emids = get_mids(np.log10(ebins))
+#     ee, rr = np.meshgrid(log_emids, eri)
+# 
+#     e_ereco_kdes = gaussian_kde(
+#         (log_sm_emids, log_sm_ereco_mids), weights=fractional_event_counts
+#     )
+#     # has shape ereco x etrue
+#     return (
+#         e_ereco_kdes([ee.flatten(), rr.flatten()]).reshape(len(eri), len(log_emids)),
+#         ereco_bins,
+#     )
 
 
 def energy_smearing(ematrix, ev):
@@ -207,7 +207,8 @@ if __name__ == "__main__":
     with open(savefile, "wb") as f:
         pickle.dump((np.log10(ebins), sindec_bins, aeff_i_full), f)
 
-    print("Calculate energy smearing...")
-    with open("../resources/energy_smearing_kde.pckl", "wb") as f:
-        pickle.dump(calc_energy_smearing(ebins), f)
+    ## moved to extra ipynb + improvement
+    # print("Calculate energy smearing...")
+    # with open("../resources/energy_smearing_kde.pckl", "wb") as f:
+    #     pickle.dump(calc_energy_smearing(ebins), f)
     print("finished!")
