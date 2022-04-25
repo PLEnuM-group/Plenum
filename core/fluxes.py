@@ -4,15 +4,13 @@ from aeff_calculations import energy_smearing
 
 # energy smearing matrix
 with open("../resources/energy_smearing_kde.pckl", "rb") as f:
-    kvals, logE_reco_bins = pickle.load(f)
+    _, kvals, logE_reco_bins = pickle.load(f)
 # normalize per bin in true energy
 normed_kvals = kvals / np.sum(kvals, axis=0)
 
 # atmospheric backgound smearing
-def atmo_background(
-    aeff_factor, spl_vals, smear_energy=True, normed_kvals=normed_kvals
-):
-    if smear_energy:
+def atmo_background(aeff_factor, spl_vals, normed_kvals=None):
+    if normed_kvals is not None:
         return energy_smearing(normed_kvals, aeff_factor * spl_vals)
     else:
         return aeff_factor * spl_vals
@@ -51,9 +49,8 @@ def astro_flux(
     emids,
     enorm,
     *args,
-    smear_energy=True,
     phi_0=PHI_0,
-    normed_kvals=normed_kvals,
+    normed_kvals=None,
 ):
     """
     Wrapper for different astro flux shapes to put into TS minimizer.
@@ -142,7 +139,7 @@ def astro_flux(
         index = parabola_index(_alpha_astro, _beta_astro, emids, enorm)
         tmp = aeff_factor * power_law(emids, enorm, index, phi_0 * _phi_astro_scaling)
     ## energy smearing
-    if smear_energy:
+    if normed_kvals is not None:
         tmp = energy_smearing(normed_kvals, tmp)
     return tmp
 
