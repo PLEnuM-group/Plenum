@@ -24,6 +24,17 @@ def gaussian(x, mu, sigma):
 
 
 def power_law(energy, e_scale, gamma, phi0):
+    """ Generic form of power-law spectrum: (energy / e_scale) ** (-gamma) * phi0
+    energy: array
+        energy values to evaluate the power-law spectrum
+    e_scale: float
+        normalization of the energy scale
+    gamma: float (positive)
+        spectral index, will be multiplied by -1
+    phi0: float
+        flux normalization at the given energy scale
+    
+    """
     return (energy / e_scale) ** (-gamma) * phi0
 
 

@@ -1,16 +1,19 @@
-import sys
-
-sys.path.append("../core")
 from settings import *
 import mceq_config as config
 from MCEq.core import MCEqRun
 import crflux.models as pm
 import pickle
-from scipy.interpolate import splrep, splev, RegularGridInterpolator
+import argparse
+
+parser = argparse.ArgumentParser(description='Calculate atmospheric fluxes with MCEq.')
+parser.add_argument('-s', '--savefile', type=str, default="./MCEQ_flux.pckl")
+args = parser.parse_args()
+print("Flux will be saved to:", args.savefile)
+
 
 # setup
-config.e_min = 0.1
-config.e_max = 1e10
+config.e_min = 1E-1
+config.e_max = 1E12
 
 mceq = MCEqRun(
     interaction_model="SIBYLL2.3c",
@@ -94,7 +97,7 @@ print("\U0001F973")
 
 
 ## save the result
-with open("../resources/MCEq_flux.pckl", "wb") as f:
+with open(args.savefile, "wb") as f:
     pickle.dump(((mceq.e_grid, angles), flux_def), f)
 
 # plotting can be found in background_flux.ipynb
