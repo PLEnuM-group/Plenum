@@ -84,7 +84,7 @@ def get_aeff_and_binnings(key="full", verbose=False):
         print(len(ra_bins) - 1, "RA bins")
     return aeff_2d, log_ebins, ebins, sindec_bins, ra_bins
 
-## moved to 'tweak_energy_resolution.ipynb'
+## moved to 'energy_resolution.ipynb'
 # def calc_energy_smearing(ebins):
 #     # Calculate energy smearing
 #     # this takes a couple of seconds
