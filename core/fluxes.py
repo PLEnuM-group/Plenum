@@ -52,16 +52,14 @@ def sigmoid(fraction_depletion, growth_rate, energy, energy_nu_trans):
     factor += fraction_depletion
     return factor
 
-
 # combine basic shapes to actual fluxes
 def astro_flux(
-    shape,
     aeff_factor,
     emids,
     enorm,
-    *args,
-    phi_0=PHI_0,
-    normed_kvals=None,
+    phi_0,
+    normed_kvals,
+    flux_shape,
 ):
     """
     Wrapper for different astro flux shapes to put into TS minimizer.
@@ -101,16 +99,16 @@ def astro_flux(
         args[3]: growth rate
         args[4]: transition energy
     """
-    if "powerlaw" in shape:
-        _gamma_astro = args[0]
-        _phi_astro_scaling = args[1]
+    if "powerlaw" in flux_shape.shape:
+        _gamma_astro = flux_shape.gamma
+        _phi_astro_scaling = flux_shape.astro_scaling
         tmp = aeff_factor * power_law(
             emids, enorm, _gamma_astro, phi_0 * _phi_astro_scaling
         )
 
-    if "double" in shape:
-        _gamma_2 = args[2]
-        _E_break = np.power(10, args[3])
+    if "double" in flux_shape.shape:
+        _gamma_2 = flux_shape.gamma_2
+        _E_break = np.power(10, flux_shape.e_break)
         phi_2 = (
             phi_0
             * _phi_astro_scaling
@@ -126,27 +124,27 @@ def astro_flux(
         else:
             raise ValueError(f"??? invalid type of tmp array ({type(tmp)})")
 
-    if "cutoff" in shape:
-        _energy_cut = np.power(10, args[2])
+    if "cutoff" in flux_shape.shape:
+        _energy_cut = np.power(10, flux_shape.e_cut)
         tmp *= cut_off(emids, _energy_cut)
 
-    if "bump" in shape or "dip" in shape:
-        amp = np.power(10, args[2])
-        energy_mean = np.power(10, args[3])
-        sigma = np.power(10, args[4])
-        amp = amp if "bump" in shape else -1 * amp
+    if "bump" in flux_shape.shape or "dip" in flux_shape.shape:
+        amp = np.power(10, flux_shape.amplitude)
+        energy_mean = np.power(10, flux_shape.e_mean)
+        sigma = np.power(10, flux_shape.sigma)
+        amp = amp if "bump" in flux_shape.shape else -1 * amp
         tmp *= 1.0 + amp * gaussian(emids, energy_mean, sigma)
 
-    if "sigmoid" in shape:
-        fraction_depletion = np.power(10, args[2])
-        growth_rate = np.power(10, args[3])
-        energy_nu_trans = np.power(10, args[4])
+    if "sigmoid" in flux_shape.shape:
+        fraction_depletion = np.power(10, flux_shape.depletion)
+        growth_rate = np.power(10, flux_shape.growth_rate)
+        energy_nu_trans = np.power(10, flux_shape.e_trans)
         tmp *= sigmoid(fraction_depletion, growth_rate, emids, energy_nu_trans)
 
-    if "parabola" in shape:
-        _alpha_astro = args[0]
-        _phi_astro_scaling = args[1]
-        _beta_astro = args[2]
+    if "parabola" in flux_shape.shape:
+        _alpha_astro = flux_shape.alpha
+        _phi_astro_scaling = flux_shape.astro_scaling
+        _beta_astro = flux_shape.beta
         index = parabola_index(_alpha_astro, _beta_astro, emids, enorm)
         tmp = aeff_factor * power_law(emids, enorm, index, phi_0 * _phi_astro_scaling)
     ## energy smearing
