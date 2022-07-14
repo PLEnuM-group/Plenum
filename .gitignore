@@ -55,3 +55,4 @@ resources/casc_ps_significance_ngc_full_dec-scan.pckl
 resources/casc_ps_significance_txs_full_dec-scan.pckl
 resources/e_psf_grid_psimax-2_bins-25.pckl
 resources/energy_smearing_2D.pckl
+resources/test.csv
