@@ -56,65 +56,65 @@ def sigmoid(fraction_depletion, growth_rate, energy, energy_nu_trans):
 def astro_flux(
     aeff_factor,
     emids,
-    enorm,
-    phi_0,
     normed_kvals,
+    phi_scaling,
     flux_shape,
 ):
     """
     Wrapper for different astro flux shapes to put into TS minimizer.
+    flux_shape must be a named tuple
+
     Possible shapes and their parameters:
 
     ° powerlaw:
-        args[0]: gamma
-        args[1]: phi scaling (phi normalization will be phi_0 * phi scaling)
+        - norm
+        - gamma
 
     ° powerlaw * cutoff:
-        args[0]: gamma
-        args[1]: phi scaling
-        args[2]: cutoff energy
+        - norm
+        - gamma
+        - e_cut
 
     ° log-parabola:
-        args[0]: alpha parameter
-        args[1]: phi scaling
-        args[2]: beta parameter
+        - norm
+        - alpha
+        - beta
 
     ° double powerlaw:
-        args[0]: gamma_1 (E < E_Break)
-        args[1]: phi scaling
-        args[2]: gamma_2 (E >= E_Break)
-        args[3]: E_Break
+        - norm
+        - gamma_1 (E < E_Break)
+        - gamma_2 (E >= E_Break)
+        - e_break
 
     ° powerlaw * dip/bump:
-        args[0]: gamma
-        args[1]: phi scaling
-        args[2]: amplitude --- sign of amplitude is defined by 'dip' or 'bump'
-        args[3]: mean energy
-        args[4]: width
+        - norm
+        - gamma
+        - amplitude --- sign of amplitude is defined by 'dip' or 'bump'
+        - e_mean
+        - width
 
     ° powerlaw * sigmoid:
-        args[0]: gamma
-        args[1]: phi scaling
-        args[2]: fraction of depletion
-        args[3]: growth rate
-        args[4]: transition energy
+        - norm
+        - gamma
+        - depletion
+        - growth_rate
+        - e_trans
     """
     if "powerlaw" in flux_shape.shape:
         _gamma_astro = flux_shape.gamma
-        _phi_astro_scaling = flux_shape.astro_scaling
         tmp = aeff_factor * power_law(
-            emids, enorm, _gamma_astro, phi_0 * _phi_astro_scaling
+            emids, flux_shape.E0, _gamma_astro, flux_shape.norm * phi_scaling
         )
 
     if "double" in flux_shape.shape:
         _gamma_2 = flux_shape.gamma_2
         _E_break = np.power(10, flux_shape.e_break)
         phi_2 = (
-            phi_0
-            * _phi_astro_scaling
-            * (_E_break / enorm) ** (-_gamma_astro + _gamma_2)
+            flux_shape.norm
+            * phi_scaling
+            * (_E_break / flux_shape.E0) ** (-_gamma_astro + _gamma_2)
         )
-        tmp_2 = aeff_factor * power_law(emids, enorm, _gamma_2, phi_2)
+        tmp_2 = aeff_factor * power_law(emids, flux_shape.E0, _gamma_2, phi_2)
         ### merge the two powerlaw shapes
         if type(tmp) == np.ndarray or type(tmp) == list:
             tmp[:, emids >= _E_break] = tmp_2[:, emids >= _E_break]
@@ -143,10 +143,9 @@ def astro_flux(
 
     if "parabola" in flux_shape.shape:
         _alpha_astro = flux_shape.alpha
-        _phi_astro_scaling = flux_shape.astro_scaling
         _beta_astro = flux_shape.beta
-        index = parabola_index(_alpha_astro, _beta_astro, emids, enorm)
-        tmp = aeff_factor * power_law(emids, enorm, index, phi_0 * _phi_astro_scaling)
+        index = parabola_index(_alpha_astro, _beta_astro, emids, flux_shape.E0)
+        tmp = aeff_factor * power_law(emids, flux_shape.E0, index, flux_shape.norm * phi_scaling)
     ## energy smearing
     if normed_kvals is not None:
         tmp = energy_smearing(normed_kvals, tmp)
