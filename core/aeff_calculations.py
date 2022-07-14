@@ -1,4 +1,5 @@
 import numpy as np
+from os.path import exists
 import pickle
 import astropy.units as u
 from astropy.time import Time
@@ -6,7 +7,7 @@ from astropy.coordinates import SkyCoord, EarthLocation, AltAz
 from scipy.interpolate import RegularGridInterpolator
 from scipy.stats import gaussian_kde
 from settings import LIVETIME, GAMMA_ASTRO, PHI_ASTRO, poles
-from tools import get_mids
+from tools import get_mids, array_source_interp
 
 # with three dimensions: sindec, energy, ra
 def aeff_eval(aeff, sindec_width, e_width, ra_width):
@@ -18,6 +19,22 @@ def aeff_eval(aeff, sindec_width, e_width, ra_width):
 # with two dimensions: sindec, energy
 def aeff_eval_e_sd(aeff, sindec_width, e_width, ra_width):
     return (aeff * sindec_width).T * e_width * np.sum(ra_width)  # = 2pi
+
+
+def calc_aeff_factor(aeff, sindec_mids, ewidth, **config):
+    dec = config.pop("dec", 0)
+    livetime = config.pop("livetime", LIVETIME)
+    dpsi_max = config.pop("dpsi_max", 0)  ## default value will evaluate PS flux
+    grid_2d = config.pop(
+        "grid_2d", 1
+    )  ## 2D grid for PS, or unity for other calculations
+    aeff_factor = (
+        array_source_interp(dec, aeff, sindec_mids) * livetime * ewidth
+    ) * grid_2d
+    if dpsi_max > 0:
+        # solid angle integration for background flux
+        aeff_factor *= np.deg2rad(dpsi_max) ** 2 * np.pi  # solid angle approx.
+    return aeff_factor
 
 
 def setup_aeff_grid(aeff_baseline, sindec_mids, ra_mids, ra_width):
@@ -84,32 +101,95 @@ def get_aeff_and_binnings(key="full", verbose=False):
         print(len(ra_bins) - 1, "RA bins")
     return aeff_2d, log_ebins, ebins, sindec_bins, ra_bins
 
-## moved to 'energy_resolution.ipynb'
-# def calc_energy_smearing(ebins):
-#     # Calculate energy smearing
-#     # this takes a couple of seconds
-#     public_data_hist = np.genfromtxt("../resources/IC86_II_smearing.csv", skip_header=1)
-#     log_sm_emids = (public_data_hist[:, 0] + public_data_hist[:, 1]) / 2.0
-#     log_sm_ereco_mids = (public_data_hist[:, 4] + public_data_hist[:, 5]) / 2.0
-#     fractional_event_counts = public_data_hist[:, 10]
-# 
-#     ereco_bins = np.arange(0.5, 10.3, step=0.2)
-#     eri = get_mids(ereco_bins)
-#     log_emids = get_mids(np.log10(ebins))
-#     ee, rr = np.meshgrid(log_emids, eri)
-# 
-#     e_ereco_kdes = gaussian_kde(
-#         (log_sm_emids, log_sm_ereco_mids), weights=fractional_event_counts
-#     )
-#     # has shape ereco x etrue
-#     return (
-#         e_ereco_kdes([ee.flatten(), rr.flatten()]).reshape(len(eri), len(log_emids)),
-#         ereco_bins,
-#     )
-
 
 def energy_smearing(ematrix, ev):
     return (ematrix @ ev.T).T
+
+
+def get_energy_psf_grid(logE_mids, delta_psi_max=2, bins_per_psi2=25, renew_calc=False):
+    """
+
+    Calculate the 2D grids of the resolution matrix in log10(energy) and
+    psi^2 (angular distance from source, squared) as a function of zenith.
+    If the file already exists, it will be loaded from disk,
+    otherwise it will be calculated and saved to disc.
+    The 'renew_calc' argument will force the calculation even if the file already
+    exists (see below).
+
+
+    Parameters:
+    -----------
+    logE_mids: array, floats
+        Mids of the logE axis of the 2D grid used for evaluation.
+    delta_psi_max: number, default is 2 (degree)
+        2D grid is evaluated from 0 to (delta_psi_max degrees)^2.
+    bins_per_psi2: int, default is 25
+        bins per square-degree, i.e. with delta_psi_max = 2 the grid will have
+        2^2 * 25 = 100 bins.
+    renew_calc: bool, default is False
+        Force to renew the calculation even if the file already exists.
+
+
+    Returns:
+    --------
+    all_grids: dict
+        2D grids for each of the zenith bins in the smearing matrix
+    psi2_bins: array
+        the coordinates of the psi2 axis
+
+    """
+
+    # energy-PSF function
+    filename = (
+        f"../resources/e_psf_grid_psimax-{delta_psi_max}_bins-{bins_per_psi2}.pckl"
+    )
+    if exists(filename) and not renew_calc:
+        print("file exists:", filename)
+        with open(filename, "rb") as f:
+            all_grids, psi2_bins = pickle.load(f)
+        return all_grids, psi2_bins
+    else:
+        print("calculating grids...")
+        public_data_hist = np.genfromtxt(
+            "../resources/IC86_II_smearing.csv", skip_header=1
+        )
+        logE_sm_min, logE_sm_max = public_data_hist[:, 0], public_data_hist[:, 1]
+        logE_sm_mids = (logE_sm_min + logE_sm_max) / 2.0
+        log_psf_mids = np.log10((public_data_hist[:, 6] + public_data_hist[:, 7]) / 2.0)
+        dec_sm_min, dec_sm_max = public_data_hist[:, 2], public_data_hist[:, 3]
+        dec_sm_mids = (dec_sm_min + dec_sm_max) / 2.0
+        fractional_event_counts = public_data_hist[:, 10]
+        all_grids = {}
+        for dd in np.unique(dec_sm_mids):
+            mask = dec_sm_mids == dd
+
+            ## set up the psi2-energy function and binning
+            e_psi_kdes = gaussian_kde(
+                (logE_sm_mids[mask], log_psf_mids[mask]),
+                weights=fractional_event_counts[mask],
+            )
+
+            # psi² representation
+            psi2_bins = np.linspace(
+                0, delta_psi_max**2, delta_psi_max**2 * bins_per_psi2 + 1
+            )
+            psi2_mids = get_mids(psi2_bins)
+            log_psi_mids = np.log10(np.sqrt(psi2_mids))
+            # KDE was produced in log(E_true) and log(Psi)
+            e_eval, psi_eval = np.meshgrid(logE_mids, log_psi_mids)
+            psi_kvals = e_psi_kdes([e_eval.flatten(), psi_eval.flatten()]).reshape(
+                len(log_psi_mids), len(logE_mids)
+            )
+
+            # new grid for analysis in psi^2 and e_true
+            _, psi_grid = np.meshgrid(logE_mids, psi2_mids)
+            all_grids[f"dec-{dd}"] = psi_kvals / psi_grid / 2 / np.log(10)
+            # normalize per energy to ensure that signal event numbers are not changed
+            all_grids[f"dec-{dd}"] /= np.sum(all_grids[f"dec-{dd}"], axis=0)
+        with open(filename, "wb") as f:
+            pickle.dump((all_grids, psi2_bins), f)
+        print("file saved to:", filename)
+        return all_grids, psi2_bins
 
 
 if __name__ == "__main__":
@@ -207,8 +287,4 @@ if __name__ == "__main__":
     with open(savefile, "wb") as f:
         pickle.dump((np.log10(ebins), sindec_bins, aeff_i_full), f)
 
-    ## moved to extra ipynb + improvement
-    # print("Calculate energy smearing...")
-    # with open("../resources/energy_smearing_kde.pckl", "wb") as f:
-    #     pickle.dump(calc_energy_smearing(ebins), f)
     print("finished!")
