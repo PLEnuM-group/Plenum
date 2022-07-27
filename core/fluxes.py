@@ -24,7 +24,7 @@ def gaussian(x, mu, sigma):
 
 
 def power_law(energy, e_scale, gamma, phi0):
-    """ Generic form of power-law spectrum: (energy / e_scale) ** (-gamma) * phi0
+    """Generic form of power-law spectrum: (energy / e_scale) ** (-gamma) * phi0
     energy: array
         energy values to evaluate the power-law spectrum
     e_scale: float
@@ -33,7 +33,7 @@ def power_law(energy, e_scale, gamma, phi0):
         spectral index, will be multiplied by -1
     phi0: float
         flux normalization at the given energy scale
-    
+
     """
     return (energy / e_scale) ** (-gamma) * phi0
 
@@ -51,6 +51,7 @@ def sigmoid(fraction_depletion, growth_rate, energy, energy_nu_trans):
     factor /= 1 + np.exp(-growth_rate * (energy - energy_nu_trans))
     factor += fraction_depletion
     return factor
+
 
 # combine basic shapes to actual fluxes
 def astro_flux(
@@ -145,7 +146,9 @@ def astro_flux(
         _alpha_astro = flux_shape.alpha
         _beta_astro = flux_shape.beta
         index = parabola_index(_alpha_astro, _beta_astro, emids, flux_shape.E0)
-        tmp = aeff_factor * power_law(emids, flux_shape.E0, index, flux_shape.norm * phi_scaling)
+        tmp = aeff_factor * power_law(
+            emids, flux_shape.E0, index, flux_shape.norm * phi_scaling
+        )
     ## energy smearing
     if normed_kvals is not None:
         tmp = energy_smearing(normed_kvals, tmp)
