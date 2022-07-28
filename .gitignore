@@ -18,9 +18,7 @@ resources/ratio_IC_IC2.txt
 .vscode/settings.json
 core/plenum.egg-info
 core/plenum.egg-info/*
-notebooks/Untitled.ipynb
 resources/*_contour.txt
-notebooks/basic_pointlike_spectral_analysis_dev.ipynb
 resources/idealized_artificial_energy_smearing_kde.pckl
 resources/improved_0.1_artificial_energy_smearing_kde.pckl
 resources/improved_0.2_artificial_energy_smearing_kde.pckl
@@ -31,9 +29,9 @@ resources/artificial_energy_smearing_kde.pckl
 .~lock.ngc_outline.odt#
 ngc_outline.odt
 Untitled.ipynb
+data.ipynb
 resources/txs_contour.pkl
 resources/casc_events_ngc.pickle
-notebooks/data.ipynb
 resources/MCEq_flux_HE.pckl
 resources/ngc_disc_pot.pickle
 resources/ngc_performance_cut_eres.pickle
@@ -57,3 +55,4 @@ resources/e_psf_grid_psimax-2_bins-25.pckl
 resources/energy_smearing_2D.pckl
 resources/test.csv
 resources/txs_time_disc_pot.pickle
+
