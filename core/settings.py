@@ -13,6 +13,8 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+BASEPATH = "/home/lisajsch/repos/Plenum/"
+
 linestyles = ["-", "--", "-.", ":"]
 colors = [
     (0.4287136896080445, 0.8230641296498253, 0.7976237339879146),

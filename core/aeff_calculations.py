@@ -1,12 +1,12 @@
 import numpy as np
-from os.path import exists
+from os.path import exists, join
 import pickle
 import astropy.units as u
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz
 from scipy.interpolate import RegularGridInterpolator
 from scipy.stats import gaussian_kde
-from settings import LIVETIME, GAMMA_ASTRO, PHI_ASTRO, poles
+from settings import BASEPATH, LIVETIME, GAMMA_ASTRO, PHI_ASTRO, poles
 from tools import get_mids, array_source_interp
 
 # with three dimensions: sindec, energy, ra
@@ -91,7 +91,9 @@ def get_aeff_and_binnings(key="full", verbose=False):
     """key: "full" for full effective area
     "upgoing" for effective area >-5deg
     """
-    with open(f"../resources/tabulated_logE_sindec_aeff_{key}.pckl", "rb") as f:
+    with open(
+        join(BASEPATH, f"resources/tabulated_logE_sindec_aeff_{key}.pckl"), "rb"
+    ) as f:
         log_ebins, sindec_bins, aeff_2d = pickle.load(f)
     ebins = np.power(10, log_ebins)
     ra_bins = np.linspace(0, np.pi * 2, num=101)
@@ -140,8 +142,9 @@ def get_energy_psf_grid(logE_mids, delta_psi_max=2, bins_per_psi2=25, renew_calc
     """
 
     # energy-PSF function
-    filename = (
-        f"../resources/e_psf_grid_psimax-{delta_psi_max}_bins-{bins_per_psi2}.pckl"
+    filename = join(
+        BASEPATH,
+        f"resources/e_psf_grid_psimax-{delta_psi_max}_bins-{bins_per_psi2}.pckl",
     )
     if exists(filename) and not renew_calc:
         print("file exists:", filename)
@@ -151,7 +154,7 @@ def get_energy_psf_grid(logE_mids, delta_psi_max=2, bins_per_psi2=25, renew_calc
     else:
         print("calculating grids...")
         public_data_hist = np.genfromtxt(
-            "../resources/IC86_II_smearing.csv", skip_header=1
+            join(BASEPATH, "resources/IC86_II_smearing.csv"), skip_header=1
         )
         logE_sm_min, logE_sm_max = public_data_hist[:, 0], public_data_hist[:, 1]
         logE_sm_mids = (logE_sm_min + logE_sm_max) / 2.0
@@ -194,7 +197,9 @@ def get_energy_psf_grid(logE_mids, delta_psi_max=2, bins_per_psi2=25, renew_calc
 
 if __name__ == "__main__":
     # get all info from data release first
-    d_public = np.genfromtxt("../resources/IC86_II_effectiveArea.csv", skip_header=1)
+    d_public = np.genfromtxt(
+        join(BASEPATH, "resources/IC86_II_effectiveArea.csv"), skip_header=1
+    )
     # log10(E_nu/GeV)_min log10(E_nu/GeV)_max
     # Dec_nu_min[deg] Dec_nu_max[deg]
     # A_Eff[cm^2]
@@ -254,7 +259,7 @@ if __name__ == "__main__":
     aeff_i["Plenum-2"] = aeff_i["Plenum-1"] - aeff_i["IceCube"] + aeff_i["Gen-2"]
 
     ## save to disc
-    savefile = "../resources/tabulated_logE_sindec_aeff_upgoing.pckl"
+    savefile = join(BASEPATH, "resources/tabulated_logE_sindec_aeff_upgoing.pckl")
     print("Saving up-going effective areas to", savefile)
     with open(savefile, "wb") as f:
         pickle.dump((np.log10(ebins), sindec_bins, aeff_i), f)
@@ -282,7 +287,7 @@ if __name__ == "__main__":
     )
 
     # save
-    savefile = "../resources/tabulated_logE_sindec_aeff_full.pckl"
+    savefile = join(BASEPATH, "resources/tabulated_logE_sindec_aeff_full.pckl")
     print("Saving full effective areas to", savefile)
     with open(savefile, "wb") as f:
         pickle.dump((np.log10(ebins), sindec_bins, aeff_i_full), f)
