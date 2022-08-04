@@ -56,3 +56,6 @@ resources/energy_smearing_2D.pckl
 resources/test.csv
 resources/txs_time_disc_pot.pickle
 
+resources/alexandra
+resources/energy_cut_wiggle*
+notebooks/sandbox/demo_flux_to_events_diffuse-alexandra-copy.ipynb
