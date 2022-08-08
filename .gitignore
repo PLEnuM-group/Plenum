@@ -59,3 +59,5 @@ resources/txs_time_disc_pot.pickle
 resources/alexandra
 resources/energy_cut_wiggle*
 notebooks/sandbox/demo_flux_to_events_diffuse-alexandra-copy.ipynb
+resources/exposure.csv
+resources/dec_acceptance.csv
