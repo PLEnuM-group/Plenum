@@ -21,19 +21,26 @@ def aeff_eval_e_sd(aeff, sindec_width, e_width, ra_width):
     return (aeff * sindec_width).T * e_width * np.sum(ra_width)  # = 2pi
 
 
-def calc_aeff_factor(aeff, sindec_mids, ewidth, **config):
-    dec = config.pop("dec", 0)
-    livetime = config.pop("livetime", LIVETIME)
-    dpsi_max = config.pop("dpsi_max", 0)  ## default value will evaluate PS flux
-    grid_2d = config.pop(
-        "grid_2d", 1
-    )  ## 2D grid for PS, or unity for other calculations
-    aeff_factor = (
-        array_source_interp(dec, aeff, sindec_mids) * livetime * ewidth
-    ) * grid_2d
-    if dpsi_max > 0:
-        # solid angle integration for background flux
-        aeff_factor *= np.deg2rad(dpsi_max) ** 2 * np.pi  # solid angle approx.
+def calc_aeff_factor(aeff, ewidth, livetime=LIVETIME, **config):
+    diff_or_ps = config.pop("diff_or_ps", "ps")
+    if diff_or_ps == "ps":
+        dec = config.pop("dec", 0)
+        sindec_mids = config.pop("sindec_mids")
+        dpsi_max = config.pop("dpsi_max", 0)  ## default value will evaluate PS flux
+        grid_2d = config.pop(
+            "grid_2d", 1
+        )  ## 2D grid for PS, or unity for other calculations
+        aeff_factor = (
+            array_source_interp(dec, aeff, sindec_mids) * livetime * ewidth
+        ) * grid_2d
+        if dpsi_max > 0:
+            # solid angle integration for background flux
+            aeff_factor *= np.deg2rad(dpsi_max) ** 2 * np.pi  # solid angle approx.
+    elif diff_or_ps == "diff":
+        sindec_width = config.pop("sindec_width")
+        aeff_factor = (aeff * sindec_width).T * ewidth * 2 * np.pi * livetime
+    else:
+        print(diff_or_ps, "must be 'diff' or 'ps'")
     return aeff_factor
 
 
