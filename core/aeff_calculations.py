@@ -44,23 +44,60 @@ def calc_aeff_factor(aeff, ewidth, livetime=LIVETIME, **config):
     return aeff_factor
 
 
-def setup_aeff_grid(aeff_baseline, sindec_mids, ra_mids, ra_width):
-    # Interpolated grid of the effective area in "local" coordinates
-    # (= icecube's native coordinates)
-    grid2d = [
-        RegularGridInterpolator(
-            (np.arcsin(sindec_mids), ra_mids),  # transform dec to local theta
-            # switch back to local zenith, add ra as new axis and normalize accordingly
-            aeff_baseline[i][::-1, np.newaxis] / np.atleast_2d(ra_width) / len(ra_mids),
-            method="linear",
-            bounds_error=False,
-            fill_value=0.0,
+def setup_aeff_grid(aeff_baseline, sindec_mids, ra_mids, ra_width, local=False):
+    """
+    Build a RegularGridInterpolator from the effective area, and make the corres-
+    ponding coordinate grid for evaluation.
+
+    We're a bit sloppy here and use sindec binning for any case
+    but since sin(dec) = cos(theta) for IceCube, this works
+    and the ordering in local coordinates stays the same also for other detectors"""
+
+    # loop over all energy bins
+    grid2d = []
+    sd_endvalues = (
+        np.arcsin(sindec_mids)[0]
+        - (np.arcsin(sindec_mids)[1] - np.arcsin(sindec_mids)[0]),
+        np.arcsin(sindec_mids)[-1]
+        + (np.arcsin(sindec_mids)[-1] - np.arcsin(sindec_mids)[-2]),
+    )
+    ra_endvalues = (ra_mids[0] - ra_width[0], ra_mids[-1] + ra_width[-1])
+    padded_sindec_mids = np.pad(
+        np.arcsin(sindec_mids),
+        pad_width=1,
+        mode="linear_ramp",
+        end_values=sd_endvalues,
+    )
+    padded_ra_mids = np.pad(
+        ra_mids,
+        pad_width=1,
+        mode="linear_ramp",
+        end_values=ra_endvalues,
+    )
+    for aeff in aeff_baseline:
+
+        if not local:
+            # this is the IceCube case, where we need to spin
+            # a_eff "upside down" from equatorial to local coordinates
+            padded_aeff = aeff[::-1, np.newaxis] / np.atleast_2d(ra_width)
+        else:
+            padded_aeff = aeff[:, np.newaxis] / np.atleast_2d(ra_width)
+        # added ra as new axis and normalize accordingly
+        padded_aeff /= len(ra_mids)
+        # pad the arrays so that we don't get ugly edge effects
+        padded_aeff = np.pad(padded_aeff, pad_width=1, mode="edge")
+        grid2d.append(
+            RegularGridInterpolator(
+                (padded_sindec_mids, padded_ra_mids),
+                padded_aeff,
+                method="linear",
+                bounds_error=False,
+                fill_value=0.0,
+            )
         )
-        for i in range(len(aeff_baseline))
-    ]
     # grid elements are calculated for each energy bin, grid is theta x phi
     # coordinate grid in equatorial coordinates (icrs)
-    # these will be the integration coordinates
+    # these will be the integration coordinates (without padding)
     pp, tt = np.meshgrid(ra_mids, np.arcsin(sindec_mids))
     eq_coords = SkyCoord(pp * u.radian, tt * u.radian, frame="icrs")
     return grid2d, eq_coords
@@ -68,10 +105,7 @@ def setup_aeff_grid(aeff_baseline, sindec_mids, ra_mids, ra_width):
 
 def aeff_rotation(coord_lat, coord_lon, eq_coords, grid2d, ra_width):
     """
-    ## Idea: transform the integration over R.A. per sin(dec) into local coordinates
-    # **Note:** here, equal contributions of each detector are assumed.
-    # In case one wants to use different livetimes, the effective areas have to multiplied
-    # individually before calculating e.g. the expected number of astrophysical events
+    Idea: transform the integration over R.A. per sin(dec) into local coordinates
     """
     # local detector
     loc = EarthLocation(lat=coord_lat, lon=coord_lon)
@@ -79,6 +113,8 @@ def aeff_rotation(coord_lat, coord_lon, eq_coords, grid2d, ra_width):
     time = Time("2021-6-21 00:00:00")
     # transform integration coordinates to local frame
     local_coords = eq_coords.transform_to(AltAz(obstime=time, location=loc))
+    # these local coordinates match the coordinates of the A_eff in grid2d
+
     # sum up the contributions over the transformed RA axis per declination
     # loop over the energy bins to get the same shape of aeff as before
     # sum along transformed ra coordinates
