@@ -1,5 +1,6 @@
 from settings import *
 from aeff_calculations import energy_smearing
+from collections import namedtuple
 
 
 # atmospheric backgound smearing
@@ -150,180 +151,149 @@ def astro_flux(
 
 
 ### some generic shape parameters used in the diffuse-style analysis
-shape_params = {
-    # parameters from https://arxiv.org/abs/1908.09551
-    "powerlaw": {
-        "baseline": np.array([1, GAMMA_ASTRO, PHI_ASTRO_FACTOR]),
-        "bounds": np.array([(0.9, 1.1), (1.0, 4.0), (0.2, 3.0)]),
-        "names": np.array(["conv_scaling", "gamma_astro", "Phi_0"]),
-        "fancy_names": np.array(
-            [
-                "Conv. scaling",
-                r"$\gamma_{\rm astro}$",
-                r"$\Phi_0 /({\rm 10^{-18} GeV cm^2 s sr})$",
-            ]
-        ),
-    },
-    # parameters inspired by https://www.institut3b.physik.rwth-aachen.de/global/show_document.asp?id=aaaaaaaaawyqakk
-    "powerlaw with cutoff": {
-        "baseline": np.array([1, 2.0, 1.5, 6]),
-        "bounds": np.array([(0.9, 1.1), (1.0, 4.0), (0.2, 3.0), (4.5, 8.5)]),
-        "names": np.array(["conv_scaling", "gamma_astro", "Phi_0", "Cut_off"]),
-        "fancy_names": np.array(
-            [
-                "Conv. scaling",
-                r"$\gamma_{\rm astro}$",
-                r"$\Phi_0 /({\rm 10^{-18} GeV cm^2 s sr})$",
-                r"$\log_{10}$(Cut-off energy/GeV)",
-            ]
-        ),
-    },
-    # parameters inspired by https://www.institut3b.physik.rwth-aachen.de/global/show_document.asp?id=aaaaaaaaawyqakk
-    "log-parabola": {
-        "baseline": np.array([1, 2, 1.7, 0.5]),
-        "bounds": np.array([(0.9, 1.1), (1.0, 4.0), (0.2, 3.0), (0.1, 1.9)]),
-        "names": np.array(["conv_scaling", "alpha", "Phi_0", r"beta"]),
-        "fancy_names": np.array(
-            [
-                "Conv. scaling",
-                r"$\alpha$",
-                r"$\Phi_0 /({\rm 10^{-18} GeV cm^2 s sr})$",
-                r"$\beta$",
-            ]
-        ),
-    },
-    # parameters inspired by https://www.institut3b.physik.rwth-aachen.de/global/show_document.asp?id=aaaaaaaaawyqakk
-    "double powerlaw": {
-        "baseline": np.array([1, 2.0, 1.2, 3.5, np.log10(1e6)]),
-        "bounds": np.array([(0.9, 1.1), (1.0, 4.0), (0.2, 3.0), (1.5, 4.0), (5, 7)]),
-        "names": np.array(
-            ["conv_scaling", "gamma_astro", "Phi_0", "gamma_2", "E_break"]
-        ),
-        "fancy_names": np.array(
-            [
-                "Conv. scaling",
-                r"$\gamma_1$",
-                r"$\Phi_0 /({\rm 10^{-18} GeV cm^2 s sr})$" r"$\gamma_2$",
-                r"$E_{\rm break}$",
-            ]
-        ),
-    },
-    "powerlaw with sigmoid": {
-        "baseline": np.array(
-            [
-                1,
-                GAMMA_ASTRO,
-                PHI_ASTRO_FACTOR,
-                np.log10(0.1),
-                np.log10(1e-5),
-                np.log10(4e5),
-            ]
-        ),
-        "bounds": np.array(
-            [(0.9, 1.1), (1.0, 4.0), (0.2, 3.0), (-2.0, 0), (-6, -4), (4.5, 6.5)]
-        ),
-        "names": np.array(
-            [
-                "conv_scaling",
-                "gamma_astro",
-                "Phi_0",
-                "depletion",
-                "growth",
-                "transition",
-            ]
-        ),
-        "fancy_names": np.array(
-            [
-                "Conv. scaling",
-                r"$\gamma_{\rm astro}$",
-                r"$\Phi_0 /({\rm 10^{-18} GeV cm^2 s sr})$",
-                "Depletion fraction",
-                "Growth rate",
-                r"$\log_{10}$(Transition energy/GeV)",
-            ]
-        ),
-    },
-    "powerlaw with dip": {
-        "baseline": np.array(
-            [
-                1,
-                GAMMA_ASTRO,
-                PHI_ASTRO_FACTOR,
-                np.log10(0.7),
-                np.log10(6e5),
-                np.log10(6e5 / 3),
-            ]
-        ),
-        "bounds": np.array(
-            [(0.9, 1.1), (1.0, 4.0), (0.2, 3.0), (-2.0, 1), (4.0, 7.0), (3.5, 7.0)]
-        ),
-        "names": np.array(
-            [
-                "conv_scaling",
-                "gamma_astro",
-                "Phi_0",
-                "amplitude",
-                "mean_energy",
-                "width",
-            ]
-        ),
-        "fancy_names": np.array(
-            [
-                "Conv. scaling",
-                r"$\gamma_{\rm astro}$",
-                r"$\Phi_0 /({\rm 10^{-18} GeV cm^2 s sr})$",
-                "Amplitude",
-                r"$\log_{10}$(Mean energy/GeV)",
-                r"$\log_{10}$(Width/GeV)",
-            ]
-        ),
-    },
-    "powerlaw with bump": {
-        "baseline": np.array(
-            [
-                1,
-                GAMMA_ASTRO,
-                PHI_ASTRO_FACTOR,
-                np.log10(2.2),
-                np.log10(4.5e5),
-                np.log10(4.5e5 / 3),
-            ]
-        ),
-        "bounds": np.array(
-            [(0.9, 1.1), (1.0, 4.0), (0.2, 3.0), (-2.0, 1), (4.0, 7.0), (3.5, 7.0)]
-        ),
-        "names": np.array(
-            [
-                "conv_scaling",
-                "gamma_astro",
-                "Phi_0",
-                "amplitude",
-                "mean_energy",
-                "width",
-            ]
-        ),
-        "fancy_names": np.array(
-            [
-                "Conv. scaling",
-                r"$\gamma_{\rm astro}$",
-                r"$\Phi_0 /({\rm 10^{-18} GeV cm^2 s sr})$",
-                "Amplitude",
-                r"$\log_{10}$(Mean energy/GeV)",
-                r"$\log_{10}$(Width/GeV)",
-            ]
-        ),
-    },
-}
+PL_flux = namedtuple("PL_flux", "norm gamma E0 shape")
+PLcut_flux = namedtuple("PLcut_flux", "norm gamma e_cut E0 shape")
+LogP_flux = namedtuple("LogP_flux", "norm alpha beta E0 shape")
+DPL_flux = namedtuple("DPL_flux", "norm gamma_1 gamma_2 E_break E0 shape")
+Sig_flux = namedtuple("Sig_flux", "norm gamma depletion growth transition E0 shape")
+DipBump_flux = namedtuple(
+    "DipBump_flux", "norm gamma amplitude mean_energy width E0 shape"
+)
 
-# some randomization of guessing parameters
-rs = np.random.RandomState(seed=667)
-for shape in shape_params:
-    shape_params[shape]["guess"] = np.copy(
-        shape_params[shape]["baseline"]
-    ) * rs.uniform(0.98, 1.02, size=len(shape_params[shape]["baseline"]))
-# alternative: give it the truth to supress minimizer errors
-# for shape in shape_params:
-#    shape_params[shape]["guess"] = deepcopy(shape_params[shape]["baseline"])
+# parameters from https://arxiv.org/abs/1908.09551
+baseline_pl_flux = PL_flux(PHI_ASTRO, GAMMA_ASTRO, E_NORM, "powerlaw")
+bounds_pl_flux = PL_flux((0.1, 10.0), (1.0, 4.0), E_NORM, "powerlaw")
+fancy_pl_flux = PL_flux(
+    r"$\Phi_0 /({\rm 10^{-18} GeV cm^2 s sr})$",
+    r"$\gamma_{\rm astro}$",
+    r"$E_0$",
+    "powerlaw",
+)
+
+# parameters inspired by
+# https://www.institut3b.physik.rwth-aachen.de/global/show_document.asp?id=aaaaaaaaawyqakk
+baseline_cut_flux = PLcut_flux(PHI_0 * 1.5, 2.0, 6, E_NORM, "powerlaw with cutoff")
+bounds_cut_flux = PLcut_flux(
+    (0.1, 10.0), (1.0, 4.0), (4.5, 8.5), E_NORM, "powerlaw with cutoff"
+)
+fancy_cut_flux = PLcut_flux(
+    r"$\Phi_0 /({\rm 10^{-18} GeV cm^2 s sr})$",
+    r"$\gamma_{\rm astro}$",
+    r"$\log_{10}$(Cut-off energy/GeV)",
+    r"$E_0$",
+    "powerlaw with cutoff",
+)
+
+baseline_para_flux = LogP_flux(PHI_0 * 1.7, 2.0, 0.5, E_NORM, "log-parabola")
+bounds_para_flux = LogP_flux(
+    (0.1, 10.0), (1.0, 4.0), (0.1, 1.9), E_NORM, "log-parabola"
+)
+fancy_para_flux = LogP_flux(
+    r"$\Phi_0 /({\rm 10^{-18} GeV cm^2 s sr})$",
+    r"$\alpha$",
+    r"$\beta$",
+    r"$E_0$",
+    "log-parabola",
+)
+baseline_double_flux = DPL_flux(
+    PHI_0 * 1.2, 2.0, 3.5, np.log10(1e6), E_NORM, "double-powerlaw"
+)
+bounds_double_flux = DPL_flux(
+    (0.1, 10.0), (1.0, 4.0), (1.5, 4.0), (5, 7), E_NORM, "double-powerlaw"
+)
+fancy_double_flux = DPL_flux(
+    r"$\Phi_0 /({\rm 10^{-18} GeV cm^2 s sr})$",
+    r"$\gamma_1$",
+    r"$\gamma_2$",
+    r"$E_{\rm break}$",
+    r"$E_0$",
+    "double-powerlaw",
+)
+
+# just made up some parameters
+baseline_sig_flux = Sig_flux(
+    PHI_ASTRO,
+    GAMMA_ASTRO,
+    np.log10(0.1),
+    np.log10(1e-5),
+    np.log10(4e5),
+    E_NORM,
+    "powerlaw with sigmoid",
+)
+bounds_sig_flux = Sig_flux(
+    (0.1, 10.0),
+    (1.0, 4.0),
+    (-2.0, 0),
+    (-6, -4),
+    (4.5, 6.5),
+    E_NORM,
+    "powerlaw with sigmoid",
+)
+fancy_sig_flux = Sig_flux(
+    r"$\Phi_0 /({\rm 10^{-18} GeV cm^2 s sr})$",
+    r"$\gamma_{\rm astro}$",
+    "Depletion fraction",
+    "Growth rate",
+    r"$\log_{10}$(Transition energy/GeV)",
+    r"$E_0$",
+    "powerlaw with sigmoid",
+)
+# Dip
+baseline_dip_flux = DipBump_flux(
+    PHI_ASTRO,
+    GAMMA_ASTRO,
+    np.log10(0.7),
+    np.log10(6e5),
+    np.log10(6e5 / 3),
+    E_NORM,
+    "powerlaw with dip",
+)
+bounds_dip_flux = DipBump_flux(
+    (0.1, 10.0),
+    (1.0, 4.0),
+    (-2.0, 1),
+    (4.0, 7.0),
+    (3.5, 7.0),
+    E_NORM,
+    "powerlaw with dip",
+)
+fancy_dip_flux = DipBump_flux(
+    r"$\Phi_0 /({\rm 10^{-18} GeV cm^2 s sr})$",
+    r"$\gamma_{\rm astro}$",
+    "Amplitude",
+    r"$\log_{10}$(Mean energy/GeV)",
+    r"$\log_{10}$(Width/GeV)",
+    r"$E_0$",
+    "powerlaw with dip",
+)
+# Bump
+baseline_bump_flux = DipBump_flux(
+    PHI_ASTRO,
+    GAMMA_ASTRO,
+    np.log10(2.2),
+    np.log10(4.5e5),
+    np.log10(4.5e5 / 3),
+    E_NORM,
+    "powerlaw with bump",
+)
+bounds_bump_flux = DipBump_flux(
+    (0.1, 10.0),
+    (1.0, 4.0),
+    (-2.0, 1),
+    (4.0, 7.0),
+    (3.5, 7.0),
+    E_NORM,
+    "powerlaw with bump",
+)
+fancy_bump_flux = DipBump_flux(
+    r"$\Phi_0 /({\rm 10^{-18} GeV cm^2 s sr})$",
+    r"$\gamma_{\rm astro}$",
+    "Amplitude",
+    r"$\log_{10}$(Mean energy/GeV)",
+    r"$\log_{10}$(Width/GeV)",
+    r"$E_0$",
+    "powerlaw with bump",
+)
 
 
 def plot_spectrum(energy, events, labels, title, f, ax, **kwargs):
