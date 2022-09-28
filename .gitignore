@@ -90,3 +90,5 @@ resources/pone_muon_energy_smearing_kde_10-res.pckl
 resources/pone_muon_energy_smearing_kde_25-res.pckl
 resources/pone_muon_energy_smearing_rgi_10-res.pckl
 resources/pone_muon_energy_smearing_rgi_25-res.pckl
+resources/casc_*.pckl
+untitled.ipynb
