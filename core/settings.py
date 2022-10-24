@@ -1,4 +1,5 @@
 import numpy as np
+import pathlib
 import matplotlib.colors as mc
 
 try:
@@ -13,8 +14,10 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-BASEPATH = "/home/lisajsch/repos/Plenum/"
+tmp_path = str(pathlib.Path(__file__).parent.resolve())
+BASEPATH = "/".join(tmp_path.split("/")[:-1])
 
+# plot settings
 linestyles = ["-", "--", "-.", ":"]
 colors = [
     (0.4287136896080445, 0.8230641296498253, 0.7976237339879146),
@@ -32,7 +35,7 @@ many_colors.extend(
 many_colors = np.array(many_colors, dtype=object)
 
 # define location of experiments
-# some plot settings
+# and plot settings
 poles = {
     "IceCube": {
         "lon": 1 * u.deg,
@@ -83,7 +86,7 @@ poles = {
     },
 }
 
-
+# Physics parameters
 # aeff in m^2
 # energy in GeV
 LIVETIME = 10 * 3600 * 24 * 365.24  # 10 years in seconds
