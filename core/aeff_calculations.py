@@ -187,7 +187,7 @@ def get_energy_psf_grid(logE_mids, delta_psi_max=2, bins_per_psi2=25, renew_calc
     # energy-PSF function
     filename = join(
         BASEPATH,
-        f"resources/e_psf_grid_psimax-{delta_psi_max}_bins-{bins_per_psi2}.pckl",
+        f"local/e_psf_grid_psimax-{delta_psi_max}_bins-{bins_per_psi2}.pckl",
     )
     if exists(filename) and not renew_calc:
         print("file exists:", filename)
