@@ -1,19 +1,21 @@
 from settings import *
+from os.path import join
 import mceq_config as config
 from MCEq.core import MCEqRun
 import crflux.models as pm
 import pickle
 import argparse
 
-parser = argparse.ArgumentParser(description='Calculate atmospheric fluxes with MCEq.')
-parser.add_argument('-s', '--savefile', type=str, default="./MCEQ_flux.pckl")
+parser = argparse.ArgumentParser(description="Calculate atmospheric fluxes with MCEq.")
+parser.add_argument("-s", "--savefile", type=str, default="MCEq_flux.pckl")
 args = parser.parse_args()
-print("Flux will be saved to:", args.savefile)
+savepath = join(BASEPATH, "resources", args.savefile)
+print("Flux will be saved to:", savepath)
 
 
 # setup
-config.e_min = 1E-1
-config.e_max = 1E12
+config.e_min = 1e-1
+config.e_max = 1e12
 
 mceq = MCEqRun(
     interaction_model="SIBYLL2.3c",
@@ -97,7 +99,7 @@ print("\U0001F973")
 
 
 ## save the result
-with open(args.savefile, "wb") as f:
+with open(savepath, "wb") as f:
     pickle.dump(((mceq.e_grid, angles), flux_def), f)
 
 # plotting can be found in background_flux.ipynb

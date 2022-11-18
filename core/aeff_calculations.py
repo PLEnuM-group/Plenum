@@ -49,12 +49,13 @@ def setup_aeff_grid(aeff_baseline, sindec_mids, ra_mids, ra_width, local=False):
     Build a RegularGridInterpolator from the effective area, and make the corres-
     ponding coordinate grid for evaluation.
 
-    We're a bit sloppy here and use sindec binning for any case
+    We're a bit sloppy with the naming here and use sindec binning for any case
     but since sin(dec) = cos(theta) for IceCube, this works
     and the ordering in local coordinates stays the same also for other detectors"""
 
-    # loop over all energy bins
     grid2d = []
+
+    # pad the arrays so that we don't get ugly edge effects
     sd_endvalues = (
         np.arcsin(sindec_mids)[0]
         - (np.arcsin(sindec_mids)[1] - np.arcsin(sindec_mids)[0]),
@@ -131,8 +132,12 @@ def aeff_rotation(coord_lat, coord_lon, eq_coords, grid2d, ra_width):
 
 
 def get_aeff_and_binnings(key="full", verbose=False):
-    """key: "full" for full effective area
+    """
+    key: "full" for full effective area
     "upgoing" for effective area >-5deg
+
+    Returns:
+    aeff_2d, log_ebins, ebins, sindec_bins, ra_bins
     """
     with open(
         join(BASEPATH, f"resources/tabulated_logE_sindec_aeff_{key}.pckl"), "rb"
@@ -250,12 +255,12 @@ if __name__ == "__main__":
     aeff = d_public[:, 4]
 
     sindec_bins = np.unique(np.sin(np.deg2rad([d_public[:, 2], d_public[:, 3]])))
+    sindec_bins = np.round(sindec_bins, 2)
     sindec_mids = get_mids(sindec_bins)
     sindec_width = np.diff(sindec_bins)
 
-    ebins = np.unique(
-        np.power(10, [d_public[:, 0], d_public[:, 1]])
-    )  # all bin edges in order
+    log_ebins = np.unique([d_public[:, 0], d_public[:, 1]])
+    ebins = np.power(10, log_ebins)
     emids = get_mids(ebins)
     ewidth = np.diff(ebins)
 
@@ -333,6 +338,6 @@ if __name__ == "__main__":
     savefile = join(BASEPATH, "resources/tabulated_logE_sindec_aeff_full.pckl")
     print("Saving full effective areas to", savefile)
     with open(savefile, "wb") as f:
-        pickle.dump((np.log10(ebins), sindec_bins, aeff_i_full), f)
+        pickle.dump((log_ebins, sindec_bins, aeff_i_full), f)
 
     print("finished!")
