@@ -15,10 +15,10 @@ from scipy.stats import norm
 from scipy.interpolate import UnivariateSpline
 
 
-
 def energy_smearing(ematrix, ev):
     return (ematrix @ ev.T).T
-    
+
+
 def array_source_interp(dec, array, sindec_mids):
     low_ind = np.digitize(np.sin(dec), sindec_mids)
 
@@ -94,6 +94,44 @@ def ang_dist(src_ra, src_dec, ra, dec):
     dist = np.arccos(cosDist)
 
     return dist
+
+
+def interpolate_quantile_value(q, xedges, yvals):
+    r"""Interpolate quantile values from a histogram.
+
+    Parameters:
+    -----------
+    q: quantile, float between 0 and 1
+    xedges: bin edges of the histogram with length n+1
+    yvals: heights of the bins with length n
+
+    Returns:
+    --------
+    Quantile value based on interpolated histogram values,
+    """
+    cumulative_yvals = np.cumsum(yvals).astype(float)
+    cumulative_yvals /= cumulative_yvals[-1]
+
+    mids = (xedges[:-1] + xedges[1:]) * 0.5
+    mask_s = cumulative_yvals <= q
+    mask_l = cumulative_yvals > q
+    try:
+        x1 = np.atleast_1d(mids[mask_s])[-1]
+        x2 = np.atleast_1d(mids[mask_l])[0]
+        y1 = np.atleast_1d(cumulative_yvals[mask_s])[-1]
+        y2 = np.atleast_1d(cumulative_yvals[mask_l])[0]
+    except:
+        # this means the quantile is either in the lowest or the highest bin
+        if np.count_nonzero(mask_s) == 0:
+            print("Quantile is in lowest bin")
+            return xedges[0]
+        elif np.count_nonzero(mask_l) == 0:
+            print("Quantile is in highest bin")
+            return xedges[1:][yvals > 0][-1]
+        else:
+            print("Something weird happened??? Please check")
+            return None
+    return np.interp(q, [y1, y2], [x1, x2])
 
 
 def getAngDist(ra1, dec1, ra2, dec2):

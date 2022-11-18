@@ -1,4 +1,5 @@
 import numpy as np
+from os.path import join
 import pathlib
 import matplotlib.colors as mc
 
@@ -12,12 +13,18 @@ from astropy.coordinates import SkyCoord
 import astropy.units as u
 import warnings
 
-warnings.filterwarnings("ignore")
-
+# get the baseline path of this project
 tmp_path = str(pathlib.Path(__file__).parent.resolve())
 BASEPATH = "/".join(tmp_path.split("/")[:-1])
 
 # plot settings
+matplotlib = sns.mpl
+plt = matplotlib.pyplot
+plt.style.use(join(BASEPATH, "style.mplstyle"))
+colorlist = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+warnings.filterwarnings("ignore")
+
+# default cool colors
 linestyles = ["-", "--", "-.", ":"]
 colors = [
     (0.4287136896080445, 0.8230641296498253, 0.7976237339879146),
@@ -89,27 +96,24 @@ poles = {
 # Physics parameters
 # aeff in m^2
 # energy in GeV
-LIVETIME = 10 * 3600 * 24 * 365.24  # 10 years in seconds
+LIVETIME = 3186 * 24 * 3600  # new ngc paper
+# LIVETIME = 10 * 360 * 24 * 3600  # 360 days of data taking per year in seconds
 E_NORM = 1e5  # normalization energy of power law (E/E_NORM)^gamma
 # --> 100 TeV
-# from phd thesis of Joeran Stettner (IC diffuse benchmark on numu)
-# temporary link: https://www.institut3b.physik.rwth-aachen.de/global/show_document.asp?id=aaaaaaaaawyqakk
-# UPDATE: paper now available at https://arxiv.org/abs/2111.10299
+# UPDATE: diffuse nu-mu paper now available at https://arxiv.org/abs/2111.10299
 GAMMA_ASTRO = 2.37
 PHI_ASTRO_FACTOR = 1.44
-
-# previous PUBLISHED work, ICRC2019: https://arxiv.org/abs/1908.09551
-# GAMMA_ASTRO = 2.28
 
 # we use this factor such that PHI_ASTRO_FACTOR can be of order 1
 PHI_0 = 1.0e-18  # * (E/100 TeV)^gamma / GeV / sr / cm^2 / s
 PHI_ASTRO = PHI_ASTRO_FACTOR * PHI_0  # * (E/100 TeV)^gamma / GeV / sr / cm^2 / s
 
+# important object coordinates
 sgr_a = SkyCoord(0, 0, unit="rad", frame="galactic")
 txs0506 = SkyCoord(77.36, 5.69, unit="deg", frame="icrs")
 ngc1068 = SkyCoord(40.67, -0.01, unit="deg", frame="icrs")
 
-
+# color helper functions
 def reset_palette(n_colors, pal="crest"):
     sns.set_palette(pal, n_colors=n_colors)
 
