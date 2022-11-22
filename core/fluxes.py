@@ -1,5 +1,5 @@
 from settings import *
-from aeff_calculations import energy_smearing
+from resolution import energy_smearing
 from collections import namedtuple
 
 

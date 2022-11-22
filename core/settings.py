@@ -17,6 +17,29 @@ import warnings
 tmp_path = str(pathlib.Path(__file__).parent.resolve())
 BASEPATH = "/".join(tmp_path.split("/")[:-1])
 
+# Physics parameters
+# aeff in m^2
+# energy in GeV
+LIVETIME = 3186 * 24 * 3600  # new ngc paper
+# LIVETIME = 10 * 360 * 24 * 3600  # 360 days of data taking per year in seconds
+E_NORM = 1e5  # normalization energy of power law (E/E_NORM)^gamma
+# --> 100 TeV
+# UPDATE: diffuse nu-mu paper now available at https://arxiv.org/abs/2111.10299
+GAMMA_ASTRO = 2.37
+PHI_ASTRO_FACTOR = 1.44
+
+# we use this factor such that PHI_ASTRO_FACTOR can be of order 1
+PHI_0 = 1.0e-18  # * (E/100 TeV)^gamma / GeV / sr / cm^2 / s
+PHI_ASTRO = PHI_ASTRO_FACTOR * PHI_0  # * (E/100 TeV)^gamma / GeV / sr / cm^2 / s
+E_MIN = 2  # 100 GeV
+E_MAX = 9  # 10⁹ GeV = 1 EeV
+
+# important object coordinates
+sgr_a = SkyCoord(0, 0, unit="rad", frame="galactic")
+txs0506 = SkyCoord(77.36, 5.69, unit="deg", frame="icrs")
+ngc1068 = SkyCoord(40.67, -0.01, unit="deg", frame="icrs")
+
+
 # plot settings
 matplotlib = sns.mpl
 plt = matplotlib.pyplot
@@ -93,25 +116,6 @@ poles = {
     },
 }
 
-# Physics parameters
-# aeff in m^2
-# energy in GeV
-LIVETIME = 3186 * 24 * 3600  # new ngc paper
-# LIVETIME = 10 * 360 * 24 * 3600  # 360 days of data taking per year in seconds
-E_NORM = 1e5  # normalization energy of power law (E/E_NORM)^gamma
-# --> 100 TeV
-# UPDATE: diffuse nu-mu paper now available at https://arxiv.org/abs/2111.10299
-GAMMA_ASTRO = 2.37
-PHI_ASTRO_FACTOR = 1.44
-
-# we use this factor such that PHI_ASTRO_FACTOR can be of order 1
-PHI_0 = 1.0e-18  # * (E/100 TeV)^gamma / GeV / sr / cm^2 / s
-PHI_ASTRO = PHI_ASTRO_FACTOR * PHI_0  # * (E/100 TeV)^gamma / GeV / sr / cm^2 / s
-
-# important object coordinates
-sgr_a = SkyCoord(0, 0, unit="rad", frame="galactic")
-txs0506 = SkyCoord(77.36, 5.69, unit="deg", frame="icrs")
-ngc1068 = SkyCoord(40.67, -0.01, unit="deg", frame="icrs")
 
 # color helper functions
 def reset_palette(n_colors, pal="crest"):

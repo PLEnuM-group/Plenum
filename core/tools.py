@@ -15,10 +15,6 @@ from scipy.stats import norm
 from scipy.interpolate import UnivariateSpline
 
 
-def energy_smearing(ematrix, ev):
-    return (ematrix @ ev.T).T
-
-
 def array_source_interp(dec, array, sindec_mids):
     low_ind = np.digitize(np.sin(dec), sindec_mids)
 
