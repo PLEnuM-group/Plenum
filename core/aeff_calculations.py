@@ -1,11 +1,10 @@
 import numpy as np
-from os.path import exists, join
+from os.path import join
 import pickle
 import astropy.units as u
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz
 from scipy.interpolate import RegularGridInterpolator
-from scipy.stats import gaussian_kde
 from settings import BASEPATH, LIVETIME, GAMMA_ASTRO, PHI_ASTRO, poles
 from tools import get_mids, array_source_interp
 
