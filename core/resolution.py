@@ -2,8 +2,12 @@ import numpy as np
 from os.path import exists, join
 import pickle
 from scipy.stats import gaussian_kde
+from scipy.interpolate import UnivariateSpline
+from scipy.optimize import curve_fit
+from scipy.special import erf
 from settings import BASEPATH, E_MIN, E_MAX
 from tools import get_mids
+from mephisto import Mephistogram
 
 
 def energy_smearing(ematrix, ev):
@@ -18,8 +22,7 @@ def get_baseline_energy_res(step_size=0.1, region="up", renew_calc=False):
     if exists(filename) and not renew_calc:
         print("file exists:", filename)
         with open(filename, "rb") as f:
-            all_grids = pickle.load(f)
-        return all_grids
+            all_grids, logE_bins, logE_reco_bins = pickle.load(f)
     else:
         print("calculating grids...")
         # energy binning
@@ -59,7 +62,9 @@ def get_baseline_energy_res(step_size=0.1, region="up", renew_calc=False):
             all_grids[f"dec-{dd}"] /= np.sum(all_grids[f"dec-{dd}"], axis=0)
 
         with open(filename, "wb") as f:
-            pickle.dump(all_grids, f)
+            pickle.dump((all_grids, logE_bins, logE_reco_bins), f)
+
+    return all_grids, logE_bins, logE_reco_bins
 
 
 def get_energy_psf_grid(logE_mids, delta_psi_max=2, bins_per_psi2=25, renew_calc=False):
@@ -147,3 +152,166 @@ def get_energy_psf_grid(logE_mids, delta_psi_max=2, bins_per_psi2=25, renew_calc
             pickle.dump((all_grids, psi2_bins), f)
         print("file saved to:", filename)
         return all_grids, psi2_bins
+
+
+def double_erf(x, shift_l, shift_r, N=1):  # sigma_r, , sigma_l
+    sigma_r = sigma_l = 0.4
+    # normalized such that it goes from 0 to N and back to 0
+    return (
+        N / 4 * (erf((x - shift_l) / sigma_l) + 1) * (-erf((x - shift_r) / sigma_r) + 1)
+    )
+
+
+def g_norm(x, loc, scale, N):
+    return np.exp(-0.5 * ((x - loc) / scale) ** 2) * N
+    # return norm.pdf(x, loc, scale) * N
+
+
+def comb(x, shift_l, shift_r, N, loc, scale, n):  # sigma_r, sigma_l,
+    return double_erf(x, shift_l, shift_r, N) + g_norm(x, loc, scale, n)
+
+
+def fit_eres_params(eres_mephisto):
+    """energy-resolution mephistogram logEreco - logE axes
+    Note that the fit parameters are tuned and hardcoded to work,
+    the fit might not work for other binnings or resolutions.
+
+    Black Magic.
+    """
+    assert "reco" in eres_mephisto.axis_names[0]
+
+    fit_params = np.zeros_like(
+        eres_mephisto.bin_mids[1],
+        dtype=[
+            ("shift_l", float),
+            ("shift_r", float),
+            ("N", float),
+            ("loc", float),
+            ("scale", float),
+            ("n", float),
+        ],
+    )
+
+    for ii, _ in enumerate(eres_mephisto.bin_mids[1]):
+        # find the mode of E-reco distribution in each slice of E-true
+        max_ind = np.argmax(eres_mephisto.histo[:, ii])
+        # save the corresponding max value
+        kv_mode = eres_mephisto.histo[max_ind, ii]
+        # estimate the flanks of the normal by referring to the mode / 2
+        height = kv_mode / 2
+
+        # selection above height, then take first and last bin
+        flanks = eres_mephisto.bin_mids[0][
+            np.where(eres_mephisto.histo[:, ii] >= height)[0][[0, -1]]
+        ]
+        fit_d, _ = curve_fit(
+            comb,
+            eres_mephisto.bin_mids[0],
+            eres_mephisto.histo[:, ii],
+            p0=[
+                flanks[0] - 0.5,  # shift_l
+                flanks[1],  # shift_r
+                0.025 / 2,  # N
+                flanks[1],  # loc
+                0.5,  # scale
+                kv_mode,  # n
+            ],
+            bounds=[
+                (  # lower
+                    1,  # shift_l
+                    flanks[0] + 0.5,  # shift_r
+                    0.017 / 2,  # N
+                    1,  # loc
+                    0.1,  # scale
+                    kv_mode * 0.85,  # n
+                ),
+                (  # upper
+                    flanks[1] - 0.5,  # shift_l
+                    20,  # shift_r
+                    0.035 / 2,  # N
+                    9,  # loc
+                    10,  # scale
+                    0.3,  # n
+                ),
+            ],
+        )
+        fit_params[ii] = tuple(fit_d)
+    return fit_params
+
+
+def smooth_eres_fit_params(fit_params, logE_mids, s=40):
+    fit_splines = {}
+    smoothed_fit_params = np.zeros_like(fit_params)
+    for n in fit_params.dtype.names:
+        fit_splines[n] = UnivariateSpline(
+            logE_mids,
+            fit_params[n],
+            k=1,
+            s=np.max(fit_params[n]) / s,
+        )
+        smoothed_fit_params[n] = tuple(fit_splines[n](logE_mids))
+    smoothed_fit_params = np.array(smoothed_fit_params)
+
+    return smoothed_fit_params
+
+
+def artificial_eres(fit_params, logE_reco_bins, logE_bins):
+    logE_reco_mids = get_mids(logE_reco_bins)
+    artificial_2D = []
+    for fit_d in fit_params:
+        artificial_2D.append(comb(logE_reco_mids, *fit_d))
+    artificial_2D = np.array(artificial_2D).T
+    artificial_2D /= np.sum(artificial_2D, axis=0)
+    artificial_2D = Mephistogram(
+        artificial_2D,
+        (logE_reco_bins, logE_bins),
+    )
+    return artificial_2D
+
+
+def one2one_eres(fit_params, logE_reco_bins, logE_bins):
+    logE_reco_mids = get_mids(logE_reco_bins)
+    logE_mids = get_mids(logE_bins)
+    artificial_2D = []
+    for ii, fit_d in enumerate(fit_params):
+        tmp_fit = fit_d.copy()
+        diff = logE_mids[ii] - tmp_fit["loc"]
+        tmp_fit["loc"] = logE_mids[ii]
+        tmp_fit["shift_r"] += diff
+        artificial_2D.append(comb(logE_reco_mids, *tmp_fit))
+    artificial_2D = np.array(artificial_2D).T
+    artificial_2D /= np.sum(artificial_2D, axis=0)
+    artificial_2D = Mephistogram(
+        artificial_2D,
+        (logE_reco_bins, logE_bins),
+    )
+    return artificial_2D
+
+
+def improved_eres(impro_factor, smoothed_fit_params, logE_reco_bins, logE_bins):
+    logE_reco_mids = get_mids(logE_reco_bins)
+    logE_mids = get_mids(logE_bins)
+    artificial_2D = []
+    for jj, fit_d in enumerate(smoothed_fit_params):
+        sigma = fit_d["scale"] / (1 + impro_factor)
+
+        tmp_fit = fit_d.copy()
+        # improve resolution
+        tmp_fit["scale"] = sigma
+        tmp_fit["n"] /= 1 + impro_factor
+
+        # improve degeneracy
+        diff = logE_mids[jj] - tmp_fit["loc"]
+        tmp_fit["loc"] = logE_mids[jj]
+        tmp_fit["shift_r"] += diff
+        combined = comb(logE_reco_mids, *tmp_fit)
+        combined /= np.sum(combined)
+        artificial_2D.append(combined)
+
+    artificial_2D = np.array(artificial_2D).T
+    artificial_2D /= np.sum(artificial_2D, axis=0)
+    artificial_2D = Mephistogram(
+        artificial_2D,
+        (logE_reco_bins, logE_bins),
+    )
+    return artificial_2D
