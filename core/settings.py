@@ -1,38 +1,70 @@
 import numpy as np
-from os.path import join
-import pathlib
-import matplotlib.colors as mc
+from os.path import join, exists
+from os import makedirs
+from pathlib import Path
 
-try:
-    import colorsys
-except:
-    print("Could not import colorsys.")
-    colorsys = None
 import seaborn as sns
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 import warnings
+from tools import get_mids
+from scipy.stats import norm
 
 # get the baseline path of this project
-tmp_path = str(pathlib.Path(__file__).parent.resolve())
+tmp_path = str(Path(__file__).parent.resolve())
 BASEPATH = "/".join(tmp_path.split("/")[:-1])
+# local path contains resources that are not mirrored on git
+LOCALPATH = join(BASEPATH, "local")
+if not exists(LOCALPATH):
+    makedirs(LOCALPATH)
+    print("Created local directory", LOCALPATH)
 
-# Physics parameters
-# aeff in m^2
-# energy in GeV
-LIVETIME = 3186 * 24 * 3600  # new ngc paper
-# LIVETIME = 10 * 360 * 24 * 3600  # 360 days of data taking per year in seconds
-E_NORM = 1e5  # normalization energy of power law (E/E_NORM)^gamma
-# --> 100 TeV
-# UPDATE: diffuse nu-mu paper now available at https://arxiv.org/abs/2111.10299
-GAMMA_ASTRO = 2.37
-PHI_ASTRO_FACTOR = 1.44
-
-# we use this factor such that PHI_ASTRO_FACTOR can be of order 1
-PHI_0 = 1.0e-18  # * (E/100 TeV)^gamma / GeV / sr / cm^2 / s
-PHI_ASTRO = PHI_ASTRO_FACTOR * PHI_0  # * (E/100 TeV)^gamma / GeV / sr / cm^2 / s
 E_MIN = 2  # 100 GeV
 E_MAX = 9  # 10⁹ GeV = 1 EeV
+LIVETIME = 3186 * 24 * 3600  # new ngc paper
+# LIVETIME = 10 * 360 * 24 * 3600  # 360 days of data taking per year in seconds
+E_NORM = 1E5  # normalization energy of power law (E/E_NORM)^gamma
+# --> 100 TeV
+# Diffuse nu-mu paper now available at https://arxiv.org/abs/2111.10299
+GAMMA_ASTRO = 2.37
+PHI_ASTRO_FACTOR = 1.44
+# we use this factor such that PHI_ASTRO_FACTOR can be of order 1
+PHI_0 = 1.0E-18  # * (E/100 TeV)^gamma / GeV / sr / cm^2 / s
+PHI_ASTRO = PHI_ASTRO_FACTOR * PHI_0  # * (E/100 TeV)^gamma / GeV / sr / cm^2 / s
+
+# Science Paper parameters of NGC 1068
+GAMMA_NGC = 3.2
+PHI_NGC = 5E-14 # @ 1 TeV / GeV cm² s
+E0_NGC = 1E3
+# cutoff parameters
+Gamma_cut = 2.0
+logE_cut = 3.5 # log10 (Ecut / GeV)
+
+# baseline binning
+logE_bins = np.arange(2, 9.05, step=0.05)
+logE_reco_bins = np.arange(2, 9.0, step=0.05)
+sindec_bins = np.linspace(-1, 1, num=91)
+delta_psi_max = 3
+bins_per_psi2 = 25
+psi2_bins = np.linspace(
+    0, delta_psi_max**2, num=delta_psi_max**2 * bins_per_psi2 + 1
+)
+
+# inferred binning/bin mids
+logE_mids = get_mids(logE_bins)
+ebins = np.power(10, logE_bins)
+emids = get_mids(ebins)
+ewidth = np.diff(ebins)
+
+logE_reco_mids = get_mids(logE_reco_bins)
+
+sindec_mids = get_mids(sindec_bins)
+sindec_width = np.diff(sindec_bins)
+
+# gaussian sigma values
+sigma5 = 1 - norm.cdf(5)
+sigma3 = 1 - norm.cdf(3)
+sigma1 = 1 - norm.cdf(1)
 
 # important object coordinates
 sgr_a = SkyCoord(0, 0, unit="rad", frame="galactic")
@@ -115,36 +147,3 @@ poles = {
         "marker": "o",
     },
 }
-
-
-# color helper functions
-def reset_palette(n_colors, pal="crest"):
-    sns.set_palette(pal, n_colors=n_colors)
-
-
-def slightly_change_color(color, amount=0.2):
-    """slightly change the color hue"""
-    if not colorsys:
-        print("Cannot change color.")
-        return color
-    try:
-        c = mc.cnames[color]
-    except:
-        c = color
-    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
-    ld = 0.1 if c[1] <= 0.5 else -0.1
-    return colorsys.hls_to_rgb(c[0] + amount, c[1] + ld, c[2])
-
-
-def change_color_ld(color, amount=0.2):
-    """slightly change the color lightness/darkness"""
-    if not colorsys:
-        print("Cannot change color.")
-        return color
-    try:
-        c = mc.cnames[color]
-    except:
-        c = color
-    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
-    c_new = np.clip(c[1] + amount, 0, 1)
-    return colorsys.hls_to_rgb(c[0], c_new, c[2])

@@ -2,10 +2,10 @@ import numpy as np
 from os.path import exists, join
 import pickle
 from scipy.stats import gaussian_kde
-from scipy.interpolate import UnivariateSpline
+from scipy.interpolate import UnivariateSpline, RegularGridInterpolator
 from scipy.optimize import curve_fit
 from scipy.special import erf
-from settings import BASEPATH, E_MIN, E_MAX
+import settings as st
 from tools import get_mids
 from mephisto import Mephistogram
 
@@ -18,7 +18,7 @@ def energy_smearing(ematrix, ev):
 def get_baseline_energy_res(step_size=0.1, region="up", renew_calc=False):
     """TODO"""
 
-    filename = join(BASEPATH, f"local/energy_smearing_2D_step-{step_size}.pckl")
+    filename = join(st.LOCALPATH, f"energy_smearing_2D_step-{step_size}.pckl")
     if exists(filename) and not renew_calc:
         print("file exists:", filename)
         with open(filename, "rb") as f:
@@ -26,15 +26,15 @@ def get_baseline_energy_res(step_size=0.1, region="up", renew_calc=False):
     else:
         print("calculating grids...")
         # energy binning
-        logE_bins = np.arange(E_MIN, E_MAX + step_size, step=step_size)
-        logE_reco_bins = np.arange(E_MIN, E_MAX, step=step_size)
+        logE_bins = np.arange(st.E_MIN, st.E_MAX + step_size, step=step_size)
+        logE_reco_bins = np.arange(st.E_MIN, st.E_MAX, step=step_size)
         logE_mids = get_mids(logE_bins)
         logE_reco_mids = get_mids(logE_reco_bins)
         ee, rr = np.meshgrid(logE_mids, logE_reco_mids)
 
         # load smearing matrix
         public_data_hist = np.genfromtxt(
-            join(BASEPATH, "resources/IC86_II_smearing.csv"), skip_header=1
+            join(st.BASEPATH, "resources/IC86_II_smearing.csv"), skip_header=1
         )
 
         log_sm_emids = (public_data_hist[:, 0] + public_data_hist[:, 1]) / 2.0
@@ -67,7 +67,7 @@ def get_baseline_energy_res(step_size=0.1, region="up", renew_calc=False):
     return all_grids, logE_bins, logE_reco_bins
 
 
-def get_energy_psf_grid(logE_mids, delta_psi_max=2, bins_per_psi2=25, renew_calc=False):
+def get_energy_psf_grid(logE_bins, delta_psi_max=2, bins_per_psi2=25, renew_calc=False):
     """
 
     Calculate the 2D grids of the resolution matrix in log10(energy) and
@@ -80,8 +80,8 @@ def get_energy_psf_grid(logE_mids, delta_psi_max=2, bins_per_psi2=25, renew_calc
 
     Parameters:
     -----------
-    logE_mids: array, floats
-        Mids of the logE axis of the 2D grid used for evaluation.
+    logE_bins: array, floats
+        Bins of the logE axis of the 2D grid used for evaluation.
     delta_psi_max: number, default is 2 (degree)
         2D grid is evaluated from 0 to (delta_psi_max degrees)^2.
     bins_per_psi2: int, default is 25
@@ -99,21 +99,20 @@ def get_energy_psf_grid(logE_mids, delta_psi_max=2, bins_per_psi2=25, renew_calc
         the coordinates of the psi2 axis
 
     """
-
+    logE_mids = get_mids(logE_bins)
     # energy-PSF function
     filename = join(
-        BASEPATH,
-        f"local/e_psf_grid_psimax-{delta_psi_max}_bins-{bins_per_psi2}.pckl",
+        st.LOCALPATH,
+        f"e_psf_grid_psimax-{delta_psi_max}_bins-{bins_per_psi2}.pckl",
     )
     if exists(filename) and not renew_calc:
         print("file exists:", filename)
         with open(filename, "rb") as f:
-            all_grids, psi2_bins = pickle.load(f)
-        return all_grids, psi2_bins
+            all_grids = pickle.load(f)
     else:
         print("calculating grids...")
         public_data_hist = np.genfromtxt(
-            join(BASEPATH, "resources/IC86_II_smearing.csv"), skip_header=1
+            join(st.BASEPATH, "resources/IC86_II_smearing.csv"), skip_header=1
         )
         logE_sm_min, logE_sm_max = public_data_hist[:, 0], public_data_hist[:, 1]
         logE_sm_mids = (logE_sm_min + logE_sm_max) / 2.0
@@ -142,16 +141,21 @@ def get_energy_psf_grid(logE_mids, delta_psi_max=2, bins_per_psi2=25, renew_calc
             psi_kvals = e_psi_kdes([e_eval.flatten(), psi_eval.flatten()]).reshape(
                 len(log_psi_mids), len(logE_mids)
             )
-
             # new grid for analysis in psi^2 and e_true
             _, psi_grid = np.meshgrid(logE_mids, psi2_mids)
-            all_grids[f"dec-{dd}"] = psi_kvals / psi_grid / 2 / np.log(10)
-            # normalize per energy to ensure that signal event numbers are not changed
-            all_grids[f"dec-{dd}"] /= np.sum(all_grids[f"dec-{dd}"], axis=0)
+            grid_tmp = psi_kvals / psi_grid / 2 / np.log(10)
+
+            all_grids[f"dec-{dd}"] = Mephistogram(
+                grid_tmp,
+                (psi2_bins, logE_bins),
+                ("Psi**2", "log(E/GeV)"),
+                make_hist=False,
+            )
+            all_grids[f"dec-{dd}"].normalize()
         with open(filename, "wb") as f:
-            pickle.dump((all_grids, psi2_bins), f)
+            pickle.dump(all_grids, f)
         print("file saved to:", filename)
-        return all_grids, psi2_bins
+    return all_grids
 
 
 def double_erf(x, shift_l, shift_r, N=1):  # sigma_r, , sigma_l
@@ -173,8 +177,10 @@ def comb(x, shift_l, shift_r, N, loc, scale, n):  # sigma_r, sigma_l,
 
 def fit_eres_params(eres_mephisto):
     """energy-resolution mephistogram logEreco - logE axes
-    Note that the fit parameters are tuned and hardcoded to work,
-    the fit might not work for other binnings or resolutions.
+
+    Note that the fit parameters are tuned and hardcoded to work
+    with the chosen bins, settings, and resolution boundaries.
+    The fit might not work well for other binnings or resolutions.
 
     Black Magic.
     """
@@ -226,9 +232,9 @@ def fit_eres_params(eres_mephisto):
                     kv_mode * 0.85,  # n
                 ),
                 (  # upper
-                    flanks[1] - 0.5,  # shift_l
+                    flanks[1] - 0.6,  # shift_l
                     20,  # shift_r
-                    0.035 / 2,  # N
+                    0.037 / 2,  # N
                     9,  # loc
                     10,  # scale
                     0.3,  # n
@@ -239,15 +245,18 @@ def fit_eres_params(eres_mephisto):
     return fit_params
 
 
-def smooth_eres_fit_params(fit_params, logE_mids, s=40):
+def smooth_eres_fit_params(fit_params, logE_mids, s=40, k=1):
     fit_splines = {}
     smoothed_fit_params = np.zeros_like(fit_params)
     for n in fit_params.dtype.names:
+        smoothing_factor = (
+            np.max(fit_params[n]) / s if n != "N" else np.max(fit_params[n]) / s / 10
+        )
         fit_splines[n] = UnivariateSpline(
             logE_mids,
             fit_params[n],
-            k=1,
-            s=np.max(fit_params[n]) / s,
+            k=k,
+            s=smoothing_factor,
         )
         smoothed_fit_params[n] = tuple(fit_splines[n](logE_mids))
     smoothed_fit_params = np.array(smoothed_fit_params)
@@ -315,3 +324,93 @@ def improved_eres(impro_factor, smoothed_fit_params, logE_reco_bins, logE_bins):
         (logE_reco_bins, logE_bins),
     )
     return artificial_2D
+
+
+if __name__ == "__main__":
+    # Build resolution functions and save them as mephistograms
+
+    # Psi² - Energy resolution
+    # already in right binning
+    all_grids = get_energy_psf_grid(
+        st.logE_bins, delta_psi_max=st.delta_psi_max, bins_per_psi2=st.bins_per_psi2, renew_calc=True
+    ) # function writes these also to disk
+
+    # generate standard energy resolution
+    all_E_grids, logE_bins_old, logE_reco_bins_old = get_baseline_energy_res(
+        renew_calc=True
+    )
+    logE_mids_old = get_mids(logE_bins_old)
+    logE_reco_mids_old = get_mids(logE_reco_bins_old)
+
+    pad_logE = np.concatenate([[logE_bins_old[0]], logE_mids_old, [logE_bins_old[-1]]])
+    pad_reco = np.concatenate(
+        [[logE_reco_bins_old[0]], logE_reco_mids_old, [logE_reco_bins_old[-1]]]
+    )
+    # update to common binning
+    lge_grid, lre_grid = np.meshgrid(st.logE_mids, st.logE_reco_mids)
+    all_E_histos = {}
+    for k in all_E_grids:
+        eres_rgi = RegularGridInterpolator(
+            (pad_reco, pad_logE),
+            np.pad(all_E_grids[k], 1, mode="edge"),
+            bounds_error=False,
+            fill_value=1e-16,
+        )
+        eres_tmp = eres_rgi((lre_grid, lge_grid))
+        eres_tmp[np.isnan(eres_tmp)] = 0
+        # normalize
+        eres_tmp /= np.sum(eres_tmp, axis=0)
+
+        all_E_histos[k] = Mephistogram(
+            eres_tmp,
+            (st.logE_reco_bins, st.logE_bins),
+            ("log(E_reco/GeV)", "log(E/GeV)"),
+            make_hist=False,
+        )
+    # save to disk
+    with open(join(st.LOCALPATH, "Eres_mephistograms.pckl"), "wb") as f:
+        pickle.dump(all_E_histos, f)
+
+    # combine horizontal and upgoing resolutions
+    eres_up_mh = all_E_histos["dec-0.0"] + all_E_histos["dec-50.0"]
+    eres_up_mh.normalize()
+
+    with open(join(st.LOCALPATH, "energy_smearing_MH_up.pckl"), "wb") as f:
+        pickle.dump(eres_up_mh, f)
+
+    # Parameterize the smearing matrix
+    fit_params = fit_eres_params(eres_up_mh)
+    np.save(join(st.LOCALPATH, "Eres_fits.npy"), fit_params)
+    smoothed_fit_params = smooth_eres_fit_params(
+        fit_params, eres_up_mh.bin_mids[1], s=40, k=3
+    )
+    np.save(join(st.LOCALPATH, "Eres_fits_smoothed.npy"), smoothed_fit_params)
+
+    # Artificial resolution matrices
+    ## Best reproduction based on the fit parameters
+    artificial_2D = artificial_eres(fit_params, *eres_up_mh.bins)
+    artificial_2D.axis_names = eres_up_mh.axis_names
+    with open(join(st.LOCALPATH, "artificial_energy_smearing_MH_up.pckl"), "wb") as f:
+        pickle.dump(artificial_2D, f)
+
+    ## 1:1 reco reproduction
+    artificial_one2one = one2one_eres(smoothed_fit_params, *eres_up_mh.bins)
+    artificial_one2one.axis_names = eres_up_mh.axis_names
+    with open(
+        join(st.LOCALPATH, "idealized_artificial_energy_smearing_MH_up.pckl"), "wb"
+    ) as f:
+        pickle.dump(artificial_one2one, f)
+
+    ## Improved artificial energy smearing
+    for ii, impro_factor in enumerate([0.1, 0.2, 0.5]):
+
+        artificial_2D_impro = improved_eres(
+            impro_factor, smoothed_fit_params, *eres_up_mh.bins
+        )
+        artificial_2D_impro.axis_names = eres_up_mh.axis_names
+        filename = join(
+            st.LOCALPATH,
+            f"improved_{impro_factor}_artificial_energy_smearing_MH_up.pckl",
+        )
+        with open(filename, "wb") as f:
+            pickle.dump(artificial_2D_impro, f)
