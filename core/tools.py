@@ -8,7 +8,13 @@ except:
     print("Could not import healpy.")
     print("functions plot_area, add_catalog, and add_extended_plane will not work.")
 from matplotlib.ticker import NullLocator
+import matplotlib.colors as mc
 
+try:
+    import colorsys
+except:
+    print("Could not import colorsys.")
+    colorsys = None
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from scipy.stats import norm
@@ -534,3 +540,36 @@ def shade_sky(ax, sky="all", **kwargs):
     ax.fill_between(fit_vals, ymin, ymax, **kwargs)
 
     return True
+
+
+# color helper functions
+def reset_palette(n_colors, sns, pal="crest"):
+    sns.set_palette(pal, n_colors=n_colors)
+
+
+def slightly_change_color(color, amount=0.2):
+    """slightly change the color hue"""
+    if not colorsys:
+        print("Cannot change color.")
+        return color
+    try:
+        c = mc.cnames[color]
+    except:
+        c = color
+    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+    ld = 0.1 if c[1] <= 0.5 else -0.1
+    return colorsys.hls_to_rgb(c[0] + amount, c[1] + ld, c[2])
+
+
+def change_color_ld(color, amount=0.2):
+    """slightly change the color lightness/darkness"""
+    if not colorsys:
+        print("Cannot change color.")
+        return color
+    try:
+        c = mc.cnames[color]
+    except:
+        c = color
+    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+    c_new = np.clip(c[1] + amount, 0, 1)
+    return colorsys.hls_to_rgb(c[0], c_new, c[2])
