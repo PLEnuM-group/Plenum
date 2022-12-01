@@ -22,20 +22,25 @@ def aeff_eval_e_sd(aeff, sindec_width, e_width, ra_width):
 
 def calc_aeff_factor(aeff, ewidth, livetime=LIVETIME, **config):
     diff_or_ps = config.pop("diff_or_ps", "ps")
+    # choose diff or ps calculation
     if diff_or_ps == "ps":
+        print("PS calculation")
         dec = config.pop("dec", 0)
         sindec_mids = config.pop("sindec_mids")
         dpsi_max = config.pop("dpsi_max", 0)  ## default value will evaluate PS flux
         grid_2d = config.pop(
             "grid_2d", 1
         )  ## 2D grid for PS, or unity for other calculations
+
+        # get the right aeff slice that matches the chosen declination
         aeff_factor = (
-            array_source_interp(dec, aeff, sindec_mids) * livetime * ewidth
-        ) * grid_2d
+            grid_2d * array_source_interp(dec, aeff, sindec_mids) * livetime * ewidth
+        )
         if dpsi_max > 0:
-            # solid angle integration for background flux
+            # solid angle integration for background aeff factor
             aeff_factor *= np.deg2rad(dpsi_max) ** 2 * np.pi  # solid angle approx.
     elif diff_or_ps == "diff":
+        print("Diffuse calculation")
         sindec_width = config.pop("sindec_width")
         aeff_factor = (aeff * sindec_width).T * ewidth * 2 * np.pi * livetime
     else:

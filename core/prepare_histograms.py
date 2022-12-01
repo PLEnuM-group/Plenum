@@ -82,33 +82,27 @@ with open(join(st.LOCALPATH, "atmospheric_background_MH.pckl"), "wb") as f:
 # ` %run ../../core/resolution.py`
 # -> only run this if you need to update the histograms
 
+##  These are already mephistograms ! Only run this if you want to import them
+if False:
+    # baseline resolution
+    with open(join(st.LOCALPATH, "energy_smearing_MH_up.pckl"), "rb") as f:
+        baseline_eres = pickle.load(f)
+    baseline_eres.normalize()
 
-# baseline resolution
-with open(join(st.LOCALPATH, "energy_smearing_MH_up.pckl"), "rb") as f:
-    baseline_eres = pickle.load(f)
-baseline_eres.normalize()
+    # resolution improved by 50%
+    impro_factor = 0.5
+    filename = join(
+        st.LOCALPATH,
+        f"improved_{impro_factor}_artificial_energy_smearing_MH_up.pckl",
+    )
+    with open(filename, "rb") as f:
+        improved_eres = pickle.load(f)
+    improved_eres.normalize()
 
-# resolution improved by 50%
-impro_factor = 0.5
-filename = join(
-    st.LOCALPATH,
-    f"improved_{impro_factor}_artificial_energy_smearing_MH_up.pckl",
-)
-with open(filename, "rb") as f:
-    improved_eres = pickle.load(f)
-improved_eres.normalize()
-
-
-# # Psi²
-# Calculation can be found in `resolution.py`
-
-filename = join(
-    st.LOCALPATH,
-    f"e_psf_grid_psimax-{st.delta_psi_max}_bins-{st.bins_per_psi2}.pckl",
-)
-
-# angular resolution
-with open(filename, "rb") as f:
-    all_psi = pickle.load(f)
-e_psi2_grid = all_psi["dec-0.0"]
-e_psi2_grid.normalize()
+    # # Psi²
+    # Calculation can be found in `resolution.py`
+    # angular resolution
+    with open(join(st.LOCALPATH, "Psi2_res_mephistograms.pckl"), "rb") as f:
+        all_psi = pickle.load(f)
+    e_psi2_grid = all_psi["dec-0.0"]
+    e_psi2_grid.normalize()

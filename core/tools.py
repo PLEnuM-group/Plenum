@@ -10,11 +10,7 @@ except:
 from matplotlib.ticker import NullLocator
 import matplotlib.colors as mc
 
-try:
-    import colorsys
-except:
-    print("Could not import colorsys.")
-    colorsys = None
+import colorsys
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from scipy.stats import norm
@@ -22,6 +18,8 @@ from scipy.interpolate import UnivariateSpline
 
 
 def array_source_interp(dec, array, sindec_mids):
+    """Select a slice of an array with sindec coordinates that matches the chosen dec."""
+    # First, find the correct bin of sindec where dec is in
     low_ind = np.digitize(np.sin(dec), sindec_mids)
 
     if low_ind >= len(sindec_mids):
@@ -31,6 +29,7 @@ def array_source_interp(dec, array, sindec_mids):
         # print("low end range")
         array_interp = array[:, low_ind]
     else:
+        # interpolate the array values within the bin boundaries
         array_interp = np.zeros(len(array))
         for i in range(len(array)):
             array_interp[i] = np.interp(

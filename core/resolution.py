@@ -12,10 +12,14 @@ from mephisto import Mephistogram
 
 def energy_smearing(ematrix, ev):
     """Matrix multiplication to translate from E_true to E_reco"""
-    return (ematrix @ ev.T).T
+    if isinstance(ematrix, Mephistogram):
+        # they are constructed such that it *should* match
+        return ev @ ematrix.T()
+    else:
+        return (ematrix @ ev.T).T
 
 
-def get_baseline_energy_res(step_size=0.1, region="up", renew_calc=False):
+def get_baseline_energy_res(step_size=0.1, renew_calc=False):
     """TODO"""
 
     filename = join(st.LOCALPATH, f"energy_smearing_2D_step-{step_size}.pckl")
@@ -77,6 +81,10 @@ def get_energy_psf_grid(logE_bins, delta_psi_max=2, bins_per_psi2=25, renew_calc
     The 'renew_calc' argument will force the calculation even if the file already
     exists (see below).
 
+    Formula:
+    $f_x(x) = kde(x)$ with $ x = \log_{10}(y) \Leftrightarrow y = 10^x$
+    Transform: $z = y² = 10^{(2\cdot x)}$ with $ x = \frac{\log_{10}(z)}{2} := g(z)$
+    $\Rightarrow f_z(z) = | \frac{d}{dz} g(z) | \cdot f(g(z)) = \frac{1}{2\cdot z \cdot \log(10)} kde(\frac{\log_{10}(z)}{2})$
 
     Parameters:
     -----------
@@ -108,7 +116,7 @@ def get_energy_psf_grid(logE_bins, delta_psi_max=2, bins_per_psi2=25, renew_calc
     if exists(filename) and not renew_calc:
         print("file exists:", filename)
         with open(filename, "rb") as f:
-            all_grids = pickle.load(f)
+            all_grids, psi2_bins, logE_bins = pickle.load(f)
     else:
         print("calculating grids...")
         public_data_hist = np.genfromtxt(
@@ -145,17 +153,11 @@ def get_energy_psf_grid(logE_bins, delta_psi_max=2, bins_per_psi2=25, renew_calc
             _, psi_grid = np.meshgrid(logE_mids, psi2_mids)
             grid_tmp = psi_kvals / psi_grid / 2 / np.log(10)
 
-            all_grids[f"dec-{dd}"] = Mephistogram(
-                grid_tmp,
-                (psi2_bins, logE_bins),
-                ("Psi**2", "log(E/GeV)"),
-                make_hist=False,
-            )
-            all_grids[f"dec-{dd}"].normalize()
+            all_grids[f"dec-{dd}"] = grid_tmp / np.sum(grid_tmp, axis=0)
         with open(filename, "wb") as f:
-            pickle.dump(all_grids, f)
+            pickle.dump((all_grids, psi2_bins, logE_bins), f)
         print("file saved to:", filename)
-    return all_grids
+    return all_grids, psi2_bins, logE_bins
 
 
 def double_erf(x, shift_l, shift_r, N=1):  # sigma_r, , sigma_l
@@ -328,16 +330,34 @@ def improved_eres(impro_factor, smoothed_fit_params, logE_reco_bins, logE_bins):
 
 if __name__ == "__main__":
     # Build resolution functions and save them as mephistograms
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--renew_calc", action="store_true")
+    args = parser.parse_args()
 
     # Psi² - Energy resolution
     # already in right binning
-    all_grids = get_energy_psf_grid(
-        st.logE_bins, delta_psi_max=st.delta_psi_max, bins_per_psi2=st.bins_per_psi2, renew_calc=True
-    ) # function writes these also to disk
+    psi_e_res, _, _ = get_energy_psf_grid(
+        st.logE_bins,
+        delta_psi_max=st.delta_psi_max,
+        bins_per_psi2=st.bins_per_psi2,
+        renew_calc=args.renew_calc,
+    )  # function writes these also to disk
+    for k in psi_e_res:
+        psi_e_res[k] = Mephistogram(
+            psi_e_res[k],
+            (st.psi2_bins, st.logE_bins),
+            ("Psi**2", "log(E/GeV)"),
+            make_hist=False,
+        )
+    # save to disk
+    with open(join(st.LOCALPATH, "Psi2_res_mephistograms.pckl"), "wb") as f:
+        pickle.dump(psi_e_res, f)
 
     # generate standard energy resolution
     all_E_grids, logE_bins_old, logE_reco_bins_old = get_baseline_energy_res(
-        renew_calc=True
+        renew_calc=args.renew_calc
     )
     logE_mids_old = get_mids(logE_bins_old)
     logE_reco_mids_old = get_mids(logE_reco_bins_old)
