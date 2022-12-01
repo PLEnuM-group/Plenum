@@ -23,22 +23,22 @@ E_MIN = 2  # 100 GeV
 E_MAX = 9  # 10⁹ GeV = 1 EeV
 LIVETIME = 3186 * 24 * 3600  # new ngc paper
 # LIVETIME = 10 * 360 * 24 * 3600  # 360 days of data taking per year in seconds
-E_NORM = 1E5  # normalization energy of power law (E/E_NORM)^gamma
+E_NORM = 1e5  # normalization energy of power law (E/E_NORM)^gamma
 # --> 100 TeV
 # Diffuse nu-mu paper now available at https://arxiv.org/abs/2111.10299
 GAMMA_ASTRO = 2.37
 PHI_ASTRO_FACTOR = 1.44
 # we use this factor such that PHI_ASTRO_FACTOR can be of order 1
-PHI_0 = 1.0E-18  # * (E/100 TeV)^gamma / GeV / sr / cm^2 / s
+PHI_0 = 1.0e-18  # * (E/100 TeV)^gamma / GeV / sr / cm^2 / s
 PHI_ASTRO = PHI_ASTRO_FACTOR * PHI_0  # * (E/100 TeV)^gamma / GeV / sr / cm^2 / s
 
 # Science Paper parameters of NGC 1068
 GAMMA_NGC = 3.2
-PHI_NGC = 5E-14 # @ 1 TeV / GeV cm² s
-E0_NGC = 1E3
+PHI_NGC = 5e-14  # @ 1 TeV / GeV cm² s
+E0_NGC = 1e3
 # cutoff parameters
 Gamma_cut = 2.0
-logE_cut = 3.5 # log10 (Ecut / GeV)
+logE_cut = 3.5  # log10 (Ecut / GeV)
 
 # baseline binning
 logE_bins = np.arange(2, 9.05, step=0.05)
@@ -49,6 +49,7 @@ bins_per_psi2 = 25
 psi2_bins = np.linspace(
     0, delta_psi_max**2, num=delta_psi_max**2 * bins_per_psi2 + 1
 )
+psi2_mids = get_mids(psi2_bins)
 
 # inferred binning/bin mids
 logE_mids = get_mids(logE_bins)
