@@ -1,20 +1,23 @@
 # This file contains a selection of functions that are used within
 # the Plenum notebooks
 import numpy as np
+from matplotlib.ticker import NullLocator
+import matplotlib.colors as mc
+from astropy import units as u
+from astropy.coordinates import SkyCoord
+from scipy.stats import norm
+from scipy.interpolate import UnivariateSpline
 
 try:
     import healpy as hp
 except:
     print("Could not import healpy.")
     print("functions plot_area, add_catalog, and add_extended_plane will not work.")
-from matplotlib.ticker import NullLocator
-import matplotlib.colors as mc
 
-import colorsys
-from astropy import units as u
-from astropy.coordinates import SkyCoord
-from scipy.stats import norm
-from scipy.interpolate import UnivariateSpline
+try:
+    import colorsys
+except:
+    colorsys = None
 
 
 def array_source_interp(dec, array, sindec_mids):

@@ -15,17 +15,14 @@ While we currently use only IceCube's data release (http://doi.org/DOI:10.21234/
 to estimate the performance of PLEnuM, other detector exposures and resolution function
 can be easily added into the framework.
 
-The notebooks and the tools require numpy, scipy, astropy, matplotlib + seaborn, pickle, and MCEq.
-Further helpful (but not necessary) packages include cartopy, colorsys and tqdm.
+The notebooks and the tools require numpy, scipy, astropy, matplotlib + seaborn  + colorsys, pickle, MCEq, and mephistogram (https://github.com/lisajschumacher/mephistogram).
+Further helpful packages include cartopy and tqdm.
 
 ## Usage:
-* The effective area and resolution functions are all pre-computed. But if you want
-to run the calculations yourself or change anything, you can follow the instructions below.
-* Run `aeff_calculations.py`: it will rotate and add up desired effective areas based on
-detector locations and IceCube's effective area. In addition, it contains some helper functions
-for the notebooks.
-* Run `atmospheric_background.py`: it will calculate the reference flux
-of atmospheric neutrinos needed for the diffuse flux study. The calculation is based on MCEq.
-* Run `energy_resolution.ipynb`: it will calculate the energy resolution function (WIP, needs to be put into core functions)
+* The effective area and resolution functions are all pre-computed. But if you want to run the calculations yourself or change anything, you can follow the instructions below.
+* Run `aeff_calculations.py`: it will rotate and add up desired effective areas based on detector locations and IceCube's effective area. In addition, it contains some helper functions for the notebooks.
+* Run `atmospheric_background.py`: it will calculate the reference flux of atmospheric neutrinos needed for the diffuse flux study. The calculation is based on MCEq.
+* Run `resolution.py`: it will calculate the energy resolution function.
+* Run `prepare_histograms.py`: it will make sure all your histograms will have the correct binning and then convert them to mephistograms.
 * Optional: Run `event_numbers.py` as preparation for skymap illustrations and the simple point-source extrapolation study.
 * Now you should be good to go to test the analysis notebooks!
