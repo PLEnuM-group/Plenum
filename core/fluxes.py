@@ -4,9 +4,9 @@ from collections import namedtuple
 
 
 # atmospheric backgound smearing
-def atmo_background(aeff_factor, spl_vals, normed_kvals=None):
-    if normed_kvals is not None:
-        return energy_smearing(normed_kvals, aeff_factor * spl_vals)
+def atmo_background(aeff_factor, spl_vals, energy_resolution=None):
+    if energy_resolution is not None:
+        return energy_smearing(energy_resolution, aeff_factor * spl_vals)
     else:
         return aeff_factor * spl_vals
 
@@ -52,7 +52,7 @@ def sigmoid(fraction_depletion, growth_rate, energy, energy_nu_trans):
 def astro_flux(
     aeff_factor,
     emids,
-    normed_kvals,
+    energy_resolution,
     phi_scaling,
     flux_shape,
 ):
@@ -96,9 +96,10 @@ def astro_flux(
         - growth_rate
         - e_trans
     """
+    flux_base = 1
     if "powerlaw" in flux_shape.shape:
         _gamma_astro = flux_shape.gamma
-        tmp = aeff_factor * power_law(
+        flux_base *= aeff_factor * power_law(
             emids, flux_shape.E0, _gamma_astro, flux_shape.norm * phi_scaling
         )
 
@@ -110,44 +111,45 @@ def astro_flux(
             * phi_scaling
             * (_E_break / flux_shape.E0) ** (-_gamma_astro + _gamma_2)
         )
-        tmp_2 = aeff_factor * power_law(emids, flux_shape.E0, _gamma_2, phi_2)
+        flux_base_2 = aeff_factor * power_law(emids, flux_shape.E0, _gamma_2, phi_2)
         ### merge the two powerlaw shapes
-        if type(tmp) == np.ndarray or type(tmp) == list:
-            tmp[:, emids >= _E_break] = tmp_2[:, emids >= _E_break]
-        elif type(tmp) == float:
+        if type(flux_base) == np.ndarray or type(flux_base) == list:
+            flux_base[:, emids >= _E_break] = flux_base_2[:, emids >= _E_break]
+        elif type(flux_base) == float:
             if emids >= _E_break:
-                tmp = tmp_2
+                flux_base = flux_base_2
         else:
-            raise ValueError(f"??? invalid type of tmp array ({type(tmp)})")
+            raise ValueError(f"??? invalid type of flux_base array ({type(flux_base)})")
 
     if "cutoff" in flux_shape.shape:
         _energy_cut = np.power(10, flux_shape.e_cut)
-        tmp *= cut_off(emids, _energy_cut)
+        flux_base *= cut_off(emids, _energy_cut)
 
     if "bump" in flux_shape.shape or "dip" in flux_shape.shape:
         amp = np.power(10, flux_shape.amplitude)
         energy_mean = np.power(10, flux_shape.e_mean)
         sigma = np.power(10, flux_shape.sigma)
         amp = amp if "bump" in flux_shape.shape else -1 * amp
-        tmp *= 1.0 + amp * gaussian(emids, energy_mean, sigma)
+        flux_base *= 1.0 + amp * gaussian(emids, energy_mean, sigma)
 
     if "sigmoid" in flux_shape.shape:
         fraction_depletion = np.power(10, flux_shape.depletion)
         growth_rate = np.power(10, flux_shape.growth_rate)
         energy_nu_trans = np.power(10, flux_shape.e_trans)
-        tmp *= sigmoid(fraction_depletion, growth_rate, emids, energy_nu_trans)
+        flux_base *= sigmoid(fraction_depletion, growth_rate, emids, energy_nu_trans)
 
     if "parabola" in flux_shape.shape:
         _alpha_astro = flux_shape.alpha
         _beta_astro = flux_shape.beta
         index = parabola_index(_alpha_astro, _beta_astro, emids, flux_shape.E0)
-        tmp = aeff_factor * power_law(
+        flux_base *= aeff_factor * power_law(
             emids, flux_shape.E0, index, flux_shape.norm * phi_scaling
         )
     ## energy smearing
-    if normed_kvals is not None:
-        tmp = energy_smearing(normed_kvals, tmp)
-    return tmp
+    if energy_resolution is not None:
+        return energy_smearing(energy_resolution, flux_base)
+    else:
+        return flux_base
 
 
 ### some generic shape parameters used in the diffuse-style analysis

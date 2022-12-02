@@ -24,7 +24,6 @@ def calc_aeff_factor(aeff, ewidth, livetime=LIVETIME, **config):
     diff_or_ps = config.pop("diff_or_ps", "ps")
     # choose diff or ps calculation
     if diff_or_ps == "ps":
-        print("PS calculation")
         dec = config.pop("dec", 0)
         sindec_mids = config.pop("sindec_mids")
         dpsi_max = config.pop("dpsi_max", 0)  ## default value will evaluate PS flux
@@ -40,7 +39,6 @@ def calc_aeff_factor(aeff, ewidth, livetime=LIVETIME, **config):
             # solid angle integration for background aeff factor
             aeff_factor *= np.deg2rad(dpsi_max) ** 2 * np.pi  # solid angle approx.
     elif diff_or_ps == "diff":
-        print("Diffuse calculation")
         sindec_width = config.pop("sindec_width")
         aeff_factor = (aeff * sindec_width).T * ewidth * 2 * np.pi * livetime
     else:
