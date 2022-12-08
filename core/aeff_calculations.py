@@ -21,7 +21,7 @@ def aeff_eval_e_sd(aeff, sindec_width, e_width, ra_width):
 
 
 def calc_aeff_factor(aeff, ewidth, livetime, **config):
-    """ Calculate the effective area multiplied with the livetime and the correct bin widths
+    """Calculate the effective area multiplied with the livetime and the correct bin widths
     for the flux integration to get the expected number of events.
 
     -- WIP --
@@ -61,14 +61,17 @@ def calc_aeff_factor(aeff, ewidth, livetime, **config):
 
         # get the right aeff slice that matches the chosen declination
         aeff_factor = (
-            grid_2d * array_source_interp(dec, aeff, sindec_mids) * livetime * ewidth
+            grid_2d
+            * array_source_interp(dec, aeff, sindec_mids, axis=1)
+            * livetime
+            * ewidth
         )
         if dpsi_max > 0:
             # solid angle integration for background aeff factor
             aeff_factor *= np.deg2rad(dpsi_max) ** 2 * np.pi  # solid angle approx.
     elif diff_or_ps == "diff":
         sindec_width = config.pop("sindec_width")
-        aeff_factor = (aeff * sindec_width).T * ewidth * 2 * np.pi * livetime
+        aeff_factor = aeff * sindec_width[:,np.newaxis] * ewidth * 2 * np.pi * livetime
     else:
         print(diff_or_ps, "must be 'diff' or 'ps'")
     return aeff_factor

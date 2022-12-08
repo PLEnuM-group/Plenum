@@ -45,9 +45,9 @@ for hemi in keys:
         aeff_tmp[np.isnan(aeff_tmp)] = 0
 
         aeff_2d[k] = Mephistogram(
-            aeff_tmp,
-            (st.logE_bins, st.sindec_bins),
-            ("log(E/GeV)", "sin(dec)"),
+            aeff_tmp.T,
+            (st.sindec_bins, st.logE_bins),
+            ("sin(dec)", "log(E/GeV)"),
             make_hist=False,
         )
 
@@ -65,9 +65,9 @@ rgi = RegularGridInterpolator(
 # baseline evaluation grid
 ss, em = np.meshgrid(st.sindec_mids, st.emids)
 bckg_histo = Mephistogram(
-    np.exp(rgi((em, ss))),
-    (st.logE_bins, st.sindec_bins),
-    ("log(E/GeV)", "sin(dec)"),
+    np.exp(rgi((em, ss))).T,
+    (st.sindec_bins, st.logE_bins),
+    ("sin(dec)", "log(E/GeV)"),
     make_hist=False,
 )
 
