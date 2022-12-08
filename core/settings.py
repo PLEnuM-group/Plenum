@@ -43,7 +43,7 @@ logE_cut = 3.5  # log10 (Ecut / GeV)
 # baseline binning
 logE_bins = np.arange(2, 9.05, step=0.05)
 logE_reco_bins = np.arange(2, 9.0, step=0.05)
-sindec_bins = np.linspace(-1, 1, num=91)
+sindec_bins = np.linspace(-1, 1, num=101)
 delta_psi_max = 3
 bins_per_psi2 = 25
 psi2_bins = np.linspace(

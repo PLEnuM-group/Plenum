@@ -19,11 +19,56 @@ try:
 except:
     colorsys = None
 
+def poisson_llh(mu_i, k_i):
+    """Calculate the -2 log(Poisson LLH)."""
+    log_LLH = np.zeros_like(mu_i)
+    # k == 0, mu > 0:
+    _mask = (k_i == 0) & (mu_i > 0)
+    log_LLH[_mask] = -mu_i[_mask]
+    # k == 0, mu == 0:
+    _mask = (k_i == 0) & (mu_i == 0)
+    log_LLH[_mask] = 0
+    # k > 0, mu==0: should not happen! we'll assign a very negative value
+    _mask = (k_i > 0) & (mu_i == 0)
+    log_LLH[_mask] = -1000
+    # k > 0, mu > 0
+    _mask = (k_i > 0) & (mu_i > 0)
+    log_LLH[_mask] = (
+        k_i[_mask] * np.log(mu_i[_mask])
+        - mu_i[_mask]
+        - 0.5 * np.log(2 * np.pi * k_i[_mask])
+        + k_i[_mask]
+        - k_i[_mask] * np.log(k_i[_mask])
+    )
 
-def array_source_interp(dec, array, sindec_mids):
-    """Select a slice of an array with sindec coordinates that matches the chosen dec."""
-    # First, find the correct bin of sindec where dec is in
+    return -2 * np.sum(log_LLH)
+
+def array_source_interp(dec, array, sindec_mids, axis=0):
+    """Select a slice of an array with sindec coordinates that matches the chosen dec.
+
+    Parameters:
+    -----------
+    dec: declination value between -np.pi/2 and +np.pi/2
+
+    array: 2D array where one axis is the sindec axis which we want to slice out
+
+    sindec_mids: sindec coordinates of one axis of the array
+
+    axis: optional, default=0
+        Indicates which axis is the sindec axis.
+        If not given, it will assume it's axis 0.
+
+    """
+    # Find the correct bin of sindec where dec is in
     low_ind = np.digitize(np.sin(dec), sindec_mids)
+
+    # Check which dimension of the array we need to pick out
+    # axis 0 is the standard, transpose if it's axis 1
+    if axis == 1:
+        if isinstance(array, np.ndarray):
+            array = array.T
+        else:
+            array = array.T()
 
     if low_ind >= len(sindec_mids):
         # print("end of range")

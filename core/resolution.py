@@ -14,8 +14,9 @@ def energy_smearing(ematrix, ev):
     """Matrix multiplication with the energy resolution
     to translate an event histogram from E_true to E_reco.
 
-    Expected formats: -- WIP --
-    ev:
+    Expected formats: Both Mephistograms
+    ematrix: logE x logE_reco
+    ev: any x logE
     """
     if isinstance(ematrix, Mephistogram):
         # try both options
@@ -23,7 +24,7 @@ def energy_smearing(ematrix, ev):
             return ev @ ematrix.T()
         except ValueError:
             return ev @ ematrix
-    else:
+    else: # backward compatibility
         return (ematrix @ ev.T).T
 
 
@@ -390,9 +391,9 @@ if __name__ == "__main__":
         eres_tmp /= np.sum(eres_tmp, axis=0)
 
         all_E_histos[k] = Mephistogram(
-            eres_tmp,
-            (st.logE_reco_bins, st.logE_bins),
-            ("log(E_reco/GeV)", "log(E/GeV)"),
+            eres_tmp.T,
+            (st.logE_bins, st.logE_reco_bins),
+            ("log(E/GeV)", "log(E_reco/GeV)"),
             make_hist=False,
         )
     # save to disk
@@ -401,44 +402,46 @@ if __name__ == "__main__":
 
     # combine horizontal and upgoing resolutions
     eres_up_mh = all_E_histos["dec-0.0"] + all_E_histos["dec-50.0"]
-    eres_up_mh.normalize()
+    eres_up_mh.normalize(axis=1) # normalize per log(E)
 
     with open(join(st.LOCALPATH, "energy_smearing_MH_up.pckl"), "wb") as f:
         pickle.dump(eres_up_mh, f)
 
+    # we need the transposed matrix for further calculations
+    eres_up_T = eres_up_mh.T()
     # Parameterize the smearing matrix
-    fit_params = fit_eres_params(eres_up_mh)
+    fit_params = fit_eres_params(eres_up_T)
     np.save(join(st.LOCALPATH, "Eres_fits.npy"), fit_params)
     smoothed_fit_params = smooth_eres_fit_params(
-        fit_params, eres_up_mh.bin_mids[1], s=40, k=3
+        fit_params, eres_up_T.bin_mids[1], s=40, k=3
     )
     np.save(join(st.LOCALPATH, "Eres_fits_smoothed.npy"), smoothed_fit_params)
 
     # Artificial resolution matrices
     ## Best reproduction based on the fit parameters
-    artificial_2D = artificial_eres(fit_params, *eres_up_mh.bins)
-    artificial_2D.axis_names = eres_up_mh.axis_names
+    artificial_2D = artificial_eres(fit_params, *eres_up_T.bins)
+    artificial_2D.axis_names = eres_up_T.axis_names
     with open(join(st.LOCALPATH, "artificial_energy_smearing_MH_up.pckl"), "wb") as f:
-        pickle.dump(artificial_2D, f)
+        pickle.dump(artificial_2D.T(), f)
 
     ## 1:1 reco reproduction
-    artificial_one2one = one2one_eres(smoothed_fit_params, *eres_up_mh.bins)
-    artificial_one2one.axis_names = eres_up_mh.axis_names
+    artificial_one2one = one2one_eres(smoothed_fit_params, *eres_up_T.bins)
+    artificial_one2one.axis_names = eres_up_T.axis_names
     with open(
         join(st.LOCALPATH, "idealized_artificial_energy_smearing_MH_up.pckl"), "wb"
     ) as f:
-        pickle.dump(artificial_one2one, f)
+        pickle.dump(artificial_one2one.T(), f)
 
     ## Improved artificial energy smearing
     for ii, impro_factor in enumerate([0.1, 0.2, 0.5]):
 
         artificial_2D_impro = improved_eres(
-            impro_factor, smoothed_fit_params, *eres_up_mh.bins
+            impro_factor, smoothed_fit_params, *eres_up_T.bins
         )
-        artificial_2D_impro.axis_names = eres_up_mh.axis_names
+        artificial_2D_impro.axis_names = eres_up_T.axis_names
         filename = join(
             st.LOCALPATH,
             f"improved_{impro_factor}_artificial_energy_smearing_MH_up.pckl",
         )
         with open(filename, "wb") as f:
-            pickle.dump(artificial_2D_impro, f)
+            pickle.dump(artificial_2D_impro.T(), f)
