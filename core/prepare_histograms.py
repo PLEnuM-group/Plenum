@@ -15,43 +15,44 @@ from mephisto import Mephistogram
 
 # # Effective Area
 # Calculation can be found in `aeff_calculations.py`
+keys = ["upgoing", "full"]
+for hemi in keys:
+    # this is the baseline binning as provided in the data release
+    aeff_2d_base, logE_bins_old, _, sindec_bins_old, _ = get_aeff_and_binnings(hemi)
+    logE_mids_old = get_mids(logE_bins_old)
+    sindec_mids_old = get_mids(sindec_bins_old)
 
-# this is the baseline binning as provided in the data release
-aeff_2d_base, logE_bins_old, _, sindec_bins_old, _ = get_aeff_and_binnings("upgoing")
-logE_mids_old = get_mids(logE_bins_old)
-sindec_mids_old = get_mids(sindec_bins_old)
+    # provide interpolation function for effective area
+    aeff_interp = {}
+    pad_logE = np.concatenate([[logE_bins_old[0]], logE_mids_old, [logE_bins_old[-1]]])
+    pad_sd = np.concatenate([[-1], sindec_mids_old, [1]])
+    for k in aeff_2d_base:
+        aeff_interp[k] = RegularGridInterpolator(
+            (pad_logE, pad_sd),
+            np.pad(np.log(aeff_2d_base[k]), 1, mode="edge"),
+            bounds_error=False,
+            fill_value=1e-16,
+        )
 
-# provide interpolation function for effective area
-aeff_interp = {}
-pad_logE = np.concatenate([[logE_bins_old[0]], logE_mids_old, [logE_bins_old[-1]]])
-pad_sd = np.concatenate([[-1], sindec_mids_old, [1]])
-for k in aeff_2d_base:
-    aeff_interp[k] = RegularGridInterpolator(
-        (pad_logE, pad_sd),
-        np.pad(np.log(aeff_2d_base[k]), 1, mode="edge"),
-        bounds_error=False,
-        fill_value=1e-16,
-    )
+    # set up new standardized binning
+    print(len(st.emids), "log_10(energy) bins")
+    print(len(st.sindec_mids), "declination bins")
+    # evaluate the interpolation and make mephistograms
+    aeff_2d = {}
+    ss, ll = np.meshgrid(st.sindec_mids, st.logE_mids)
+    for k in aeff_2d_base:
+        aeff_tmp = np.exp(aeff_interp[k]((ll, ss)))
+        aeff_tmp[np.isnan(aeff_tmp)] = 0
 
-# set up new standardized binning
-print(len(st.emids), "log_10(energy) bins")
-print(len(st.sindec_mids), "declination bins")
-# evaluate the interpolation and make mephistograms
-aeff_2d = {}
-ss, ll = np.meshgrid(st.sindec_mids, st.logE_mids)
-for k in aeff_2d_base:
-    aeff_tmp = np.exp(aeff_interp[k]((ll, ss)))
-    aeff_tmp[np.isnan(aeff_tmp)] = 0
+        aeff_2d[k] = Mephistogram(
+            aeff_tmp,
+            (st.logE_bins, st.sindec_bins),
+            ("log(E/GeV)", "sin(dec)"),
+            make_hist=False,
+        )
 
-    aeff_2d[k] = Mephistogram(
-        aeff_tmp,
-        (st.logE_bins, st.sindec_bins),
-        ("log(E/GeV)", "sin(dec)"),
-        make_hist=False,
-    )
-
-with open(join(st.LOCALPATH, "effective_area_MH_upgoing.pckl"), "wb") as f:
-    pickle.dump(aeff_2d, f)
+    with open(join(st.LOCALPATH, f"effective_area_MH_{hemi}.pckl"), "wb") as f:
+        pickle.dump(aeff_2d, f)
 
 # Calculation can be found in `atmospheric_background.py`
 # MCEQ
@@ -82,7 +83,7 @@ with open(join(st.LOCALPATH, "atmospheric_background_MH.pckl"), "wb") as f:
 # ` %run ../../core/resolution.py`
 # -> only run this if you need to update the histograms
 
-##  These are already mephistograms ! Only run this if you want to import them
+##  These are already mephistograms ! Only need to run this if you want to import them
 if False:
     # baseline resolution
     with open(join(st.LOCALPATH, "energy_smearing_MH_up.pckl"), "rb") as f:

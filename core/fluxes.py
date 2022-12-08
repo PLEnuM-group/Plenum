@@ -4,11 +4,27 @@ from collections import namedtuple
 
 
 # atmospheric backgound smearing
-def atmo_background(aeff_factor, spl_vals, energy_resolution=None):
+def atmo_background(aeff_factor, bckg_vals, energy_resolution=None):
+    """Calculate the number of neutrinos of atmospheric background flux
+    as a function neutrino energy or reconstructed energy.
+
+    If aeff_factor is 2D, eg. in sin(dec) and log(E_true),
+    the result will also be 2D, in sin(dec) and log(E_reco) then.
+
+    Parameters:
+    aeff_factor: array
+        effective area multiplied with binning and livetime
+    bckg_vals: atmospheric background flux binned the same way as aeff_factor
+    energy_resolution: Optional
+        If the energy resolution matrix is given,
+        calculate the background events for reconstructed energy;
+        If None, return background events for true neutrino energy
+
+    """
     if energy_resolution is not None:
-        return energy_smearing(energy_resolution, aeff_factor * spl_vals)
+        return energy_smearing(energy_resolution, aeff_factor * bckg_vals)
     else:
-        return aeff_factor * spl_vals
+        return aeff_factor * bckg_vals
 
 
 ## Adapted from Mauricio's fluxes

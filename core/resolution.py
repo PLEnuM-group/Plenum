@@ -11,10 +11,18 @@ from mephisto import Mephistogram
 
 
 def energy_smearing(ematrix, ev):
-    """Matrix multiplication to translate from E_true to E_reco"""
+    """Matrix multiplication with the energy resolution
+    to translate an event histogram from E_true to E_reco.
+
+    Expected formats: -- WIP --
+    ev:
+    """
     if isinstance(ematrix, Mephistogram):
-        # they are constructed such that it *should* match
-        return ev @ ematrix.T()
+        # try both options
+        try:
+            return ev @ ematrix.T()
+        except ValueError:
+            return ev @ ematrix
     else:
         return (ematrix @ ev.T).T
 

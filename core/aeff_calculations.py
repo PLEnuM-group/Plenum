@@ -20,7 +20,35 @@ def aeff_eval_e_sd(aeff, sindec_width, e_width, ra_width):
     return (aeff * sindec_width).T * e_width * np.sum(ra_width)  # = 2pi
 
 
-def calc_aeff_factor(aeff, ewidth, livetime=LIVETIME, **config):
+def calc_aeff_factor(aeff, ewidth, livetime, **config):
+    """ Calculate the effective area multiplied with the livetime and the correct bin widths
+    for the flux integration to get the expected number of events.
+
+    -- WIP --
+
+    Parameters:
+    -----------
+    aeff:
+
+    ewidth:
+
+    livetime:
+
+
+    Keyword Parameters:
+    -------------------
+    diff_or_ps: default 'ps'
+
+    dec: default 0
+
+    sindec_mids: no default given
+
+    sindec_width: no default given
+
+    dpsi_max: default 0
+
+    grid_2d: default 1
+    """
     diff_or_ps = config.pop("diff_or_ps", "ps")
     # choose diff or ps calculation
     if diff_or_ps == "ps":
