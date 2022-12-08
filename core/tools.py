@@ -70,7 +70,7 @@ def sigma2pval(sigma, one_sided=True):
 
 
 def get_mids(bins, ext=False):
-    """Calculate the bin mids from an array of bins"""
+    """Calculate the bin mids from an array of bin edges."""
     res = (bins[1:] + bins[:-1]) * 0.5
     if ext == False:
         return res
