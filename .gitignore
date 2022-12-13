@@ -20,3 +20,7 @@ data.ipynb
 notebooks/sandbox
 notebooks/sandbox/*
 untitled.ipynb
+relative_detection_eff_dIC_vs_sindec_wGen2_smaller.pdf
+resources/detection_efficiencies.pckl
+resources/inst_rel_events_ra_dec.pckl
+resources/rel_events_ra_dec.pckl

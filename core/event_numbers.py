@@ -4,24 +4,15 @@ import astropy.units as u
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz
 from scipy.interpolate import InterpolatedUnivariateSpline, RegularGridInterpolator
-from aeff_calculations import aeff_eval_e_sd, get_aeff_and_binnings
-from tools import get_mids, _trans
-from settings import poles, E_NORM
+from aeff_calculations import aeff_eval_e_sd
+from tools import get_mids
+from settings import *
 
-try:
-    from tqdm import tqdm
-except Exception as e:
-    print("Could not import tqdm. Please change iteration where it's used.")
-    raise e
+from tqdm import tqdm
 
 print("Calculate detection efficiencies")
-aeff_2d, log_ebins, ebins, sindec_bins, ra_bins = get_aeff_and_binnings("full")
-emids = get_mids(ebins)
-ewidth = np.diff(ebins)
-sindec_mids = get_mids(sindec_bins)
-sindec_width = np.diff(sindec_bins)
-ra_width = np.diff(ra_bins)
-
+with open(join(LOCALPATH, "effective_area_MH_full.pckl"), "rb") as f:
+    aeff_2d = pickle.load(f)
 
 ### calculate raw neutrino rate ~ detection efficiency
 # Res = integral dE ( A_eff * (E/GeV)**(-gamma) ) / delta sindec
@@ -48,7 +39,7 @@ for ii, gamma in enumerate(np.round(np.arange(1.4, 3.6, step=0.1), decimals=1)):
         padded_res = np.concatenate([[Res[0]], Res, [Res[-1]]])
         tcks[gamma][det] = InterpolatedUnivariateSpline(padded_sd, np.log(padded_res))
 
-with open("../resources/detection_efficiencies.pckl", "wb") as f:
+with open(join(LOCALPATH, "detection_efficiencies.pckl"), "wb") as f:
     pickle.dump((tcks, padded_sd), f)
 
 
@@ -137,8 +128,8 @@ for ii, gamma in tqdm(enumerate(np.round(np.arange(1.4, 3.6, step=0.1), decimals
             ]
             rel_events_ra_dec[gamma]["Plenum-2"] += rel_events_ra_dec[gamma][k]
 
-with open("../resources/rel_events_ra_dec.pckl", "wb") as f:
+with open(join(LOCALPATH, "rel_events_ra_dec.pckl"), "wb") as f:
     pickle.dump((rel_events_ra_dec, ra_vals, dec_vals), f)
 
-with open("../resources/inst_rel_events_ra_dec.pckl", "wb") as f:
+with open(join(LOCALPATH, "inst_rel_events_ra_dec.pckl"), "wb") as f:
     pickle.dump((inst_rel_events_ra_dec, ra_vals, dec_vals), f)

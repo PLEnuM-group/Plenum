@@ -18,7 +18,7 @@ from mephisto import Mephistogram
 keys = ["upgoing", "full"]
 for hemi in keys:
     # this is the baseline binning as provided in the data release
-    aeff_2d_base, logE_bins_old, _, sindec_bins_old, _ = get_aeff_and_binnings(hemi)
+    aeff_2d_base, logE_bins_old, _, sindec_bins_old = get_aeff_and_binnings(hemi)
     logE_mids_old = get_mids(logE_bins_old)
     sindec_mids_old = get_mids(sindec_bins_old)
 

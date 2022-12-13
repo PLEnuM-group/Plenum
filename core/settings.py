@@ -44,6 +44,8 @@ logE_cut = 3.5  # log10 (Ecut / GeV)
 logE_bins = np.arange(2, 9.05, step=0.05)
 logE_reco_bins = np.arange(2, 9.0, step=0.05)
 sindec_bins = np.linspace(-1, 1, num=101)
+ra_bins = np.linspace(0, np.pi * 2, num=100)
+
 delta_psi_max = 3
 bins_per_psi2 = 25
 psi2_bins = np.linspace(
@@ -61,6 +63,9 @@ logE_reco_mids = get_mids(logE_reco_bins)
 
 sindec_mids = get_mids(sindec_bins)
 sindec_width = np.diff(sindec_bins)
+
+ra_mids = get_mids(ra_bins)
+ra_width = np.diff(ra_bins)
 
 # gaussian sigma values
 sigma5 = 1 - norm.cdf(5)
