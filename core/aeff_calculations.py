@@ -5,7 +5,15 @@ import astropy.units as u
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz
 from scipy.interpolate import RegularGridInterpolator
-from settings import BASEPATH, LIVETIME, GAMMA_ASTRO, PHI_ASTRO, poles
+from settings import (
+    BASEPATH,
+    LIVETIME,
+    GAMMA_ASTRO,
+    PHI_ASTRO,
+    poles,
+    ra_mids,
+    ra_width,
+)
 from tools import get_mids, array_source_interp
 
 # with three dimensions: sindec, energy, ra
@@ -16,8 +24,9 @@ def aeff_eval(aeff, sindec_width, e_width, ra_width):
 
 
 # with two dimensions: sindec, energy
-def aeff_eval_e_sd(aeff, sindec_width, e_width, ra_width):
-    return (aeff * sindec_width).T * e_width * np.sum(ra_width)  # = 2pi
+def aeff_eval_e_sd(aeff, sindec_width, e_width, ra_width=2 * np.pi):
+    ra_width = np.atleast_1d(ra_width)
+    return aeff * sindec_width[:, np.newaxis] * e_width * np.sum(ra_width)
 
 
 def calc_aeff_factor(aeff, ewidth, livetime, **config):
@@ -71,7 +80,7 @@ def calc_aeff_factor(aeff, ewidth, livetime, **config):
             aeff_factor *= np.deg2rad(dpsi_max) ** 2 * np.pi  # solid angle approx.
     elif diff_or_ps == "diff":
         sindec_width = config.pop("sindec_width")
-        aeff_factor = aeff * sindec_width[:,np.newaxis] * ewidth * 2 * np.pi * livetime
+        aeff_factor = aeff_eval_e_sd(aeff, sindec_width, ewidth) * livetime
     else:
         print(diff_or_ps, "must be 'diff' or 'ps'")
     return aeff_factor
@@ -177,12 +186,10 @@ def get_aeff_and_binnings(key="full", verbose=False):
     ) as f:
         log_ebins, sindec_bins, aeff_2d = pickle.load(f)
     ebins = np.power(10, log_ebins)
-    ra_bins = np.linspace(0, np.pi * 2, num=101)
     if verbose:
         print(len(ebins) - 1, "log_10(energy) bins")
         print(len(sindec_bins) - 1, "declination bins")
-        print(len(ra_bins) - 1, "RA bins")
-    return aeff_2d, log_ebins, ebins, sindec_bins, ra_bins
+    return aeff_2d, log_ebins, ebins, sindec_bins
 
 
 if __name__ == "__main__":
@@ -205,10 +212,6 @@ if __name__ == "__main__":
     ebins = np.power(10, log_ebins)
     emids = get_mids(ebins)
     ewidth = np.diff(ebins)
-
-    ra_bins = np.linspace(0, np.pi * 2, num=101)
-    ra_mids = get_mids(ra_bins)
-    ra_width = np.diff(ra_bins)
 
     aeff_2d = dict()
     # re-shape into 2D array with (A(E) x A(delta))

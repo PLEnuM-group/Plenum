@@ -19,8 +19,24 @@ try:
 except:
     colorsys = None
 
+
 def poisson_llh(mu_i, k_i):
-    """Calculate the -2 log(Poisson LLH)."""
+    """Calculate the -2 log(Poisson LLH).
+
+    L(data k | model mu)  = prod_{i,j} mu_ij ** k_ij / k_ij! * exp(-mu_ij)
+
+    For numerical stability, we directly evaluate the log of the poisson probability
+    (see https://en.wikipedia.org/wiki/Stirling%27s_approximation for approximation of the faculty function)
+
+    -2 log (L) = -2 [k_i log(mu_i) - mu_i - 0.5 log(2 pi k_i) + k_i - k_i log(k_i)]
+
+    We treat some special cases that cause problems in log:
+
+    * mu -> 0, k>0     --> P -> 0
+    * k -> 0, mu>0     --> P -> exp(-mu)
+    * k -> 0, mu -> 0  --> P -> 1
+
+    """
     log_LLH = np.zeros_like(mu_i)
     # k == 0, mu > 0:
     _mask = (k_i == 0) & (mu_i > 0)
@@ -42,6 +58,7 @@ def poisson_llh(mu_i, k_i):
     )
 
     return -2 * np.sum(log_LLH)
+
 
 def array_source_interp(dec, array, sindec_mids, axis=0):
     """Select a slice of an array with sindec coordinates that matches the chosen dec.
