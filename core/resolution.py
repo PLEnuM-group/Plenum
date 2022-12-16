@@ -181,8 +181,8 @@ def g_norm(x, loc, scale, N):
     return np.exp(-0.5 * ((x - loc) / scale) ** 2) * N
 
 
-def comb(x, shift_l, shift_r, N, loc, scale, n):
-    return double_erf(x, shift_l, shift_r, N) + g_norm(x, loc, scale, n)
+def comb(x, shift_l, N, loc, scale, n):  # shift_r
+    return double_erf(x, shift_l, loc, N) + g_norm(x, loc, scale, n)
 
 
 def fit_eres_params(eres_mephisto):
@@ -199,12 +199,12 @@ def fit_eres_params(eres_mephisto):
     fit_params = np.zeros_like(
         eres_mephisto.bin_mids[1],
         dtype=[
-            ("shift_l", float),
-            ("shift_r", float),
-            ("N", float),
-            ("loc", float),
-            ("scale", float),
-            ("n", float),
+            ("shift_l", float),  # plateau
+            # ("shift_r", float), # plateau
+            ("N", float),  # plateau
+            ("loc", float),  # gauss
+            ("scale", float),  # gauss
+            ("n", float),  # gauss
         ],
     )
 
@@ -225,28 +225,28 @@ def fit_eres_params(eres_mephisto):
             eres_mephisto.bin_mids[0],
             eres_mephisto.histo[:, ii],
             p0=[
-                flanks[0] - 0.5,  # shift_l
-                flanks[1],  # shift_r
-                0.025 / 2,  # N
+                flanks[0] + 0.1,  # shift_l
+                # flanks[1],  # shift_r
+                0.017,  # N
                 flanks[1],  # loc
                 0.5,  # scale
                 kv_mode,  # n
             ],
             bounds=[
                 (  # lower
-                    1,  # shift_l
-                    flanks[0] + 0.5,  # shift_r
-                    0.017 / 2,  # N
+                    flanks[0] - 0.3,  # shift_l
+                    # flanks[0] + 0.5,  # shift_r
+                    0.007,  # 0.017 / 2,  # N
                     1,  # loc
                     0.1,  # scale
-                    kv_mode * 0.85,  # n
+                    0,  # kv_mode * 0.85,  # n
                 ),
                 (  # upper
-                    flanks[1] - 0.6,  # shift_l
-                    20,  # shift_r
-                    0.037 / 2,  # N
+                    flanks[0] + 1,  # shift_l
+                    # 20,  # shift_r
+                    0.5,  # N
                     9,  # loc
-                    10,  # scale
+                    3,  # scale
                     0.3,  # n
                 ),
             ],
@@ -256,11 +256,15 @@ def fit_eres_params(eres_mephisto):
 
 
 def smooth_eres_fit_params(fit_params, logE_mids, s=40, k=1):
+    """Larger s -> larger precision (= less smoothing)"""
     fit_splines = {}
     smoothed_fit_params = np.zeros_like(fit_params)
     for n in fit_params.dtype.names:
         smoothing_factor = (
-            np.max(fit_params[n]) / s if n != "N" else np.max(fit_params[n]) / s / 10
+            np.max(fit_params[n])
+            / s
+            # if n != "n"
+            # else 1e-4  # np.max(fit_params[n]) / s / 20
         )
         fit_splines[n] = UnivariateSpline(
             logE_mids,
@@ -269,6 +273,8 @@ def smooth_eres_fit_params(fit_params, logE_mids, s=40, k=1):
             s=smoothing_factor,
         )
         smoothed_fit_params[n] = tuple(fit_splines[n](logE_mids))
+        if n == "n":
+            smoothed_fit_params[n][smoothed_fit_params[n] < 0] = 0
     smoothed_fit_params = np.array(smoothed_fit_params)
 
     return smoothed_fit_params
@@ -294,9 +300,9 @@ def one2one_eres(fit_params, logE_reco_bins, logE_bins):
     artificial_2D = []
     for ii, fit_d in enumerate(fit_params):
         tmp_fit = fit_d.copy()
-        diff = logE_mids[ii] - tmp_fit["loc"]
+        # diff = logE_mids[ii] - tmp_fit["loc"]
         tmp_fit["loc"] = logE_mids[ii]
-        tmp_fit["shift_r"] += diff
+        # tmp_fit["shift_r"] += diff
         artificial_2D.append(comb(logE_reco_mids, *tmp_fit))
     artificial_2D = np.array(artificial_2D).T
     artificial_2D /= np.sum(artificial_2D, axis=0)
@@ -322,7 +328,7 @@ def improved_eres(impro_factor, smoothed_fit_params, logE_reco_bins, logE_bins):
         # improve degeneracy
         diff = logE_mids[jj] - tmp_fit["loc"]
         tmp_fit["loc"] = logE_mids[jj]
-        tmp_fit["shift_r"] += diff
+        # tmp_fit["shift_r"] += diff
         combined = comb(logE_reco_mids, *tmp_fit)
         combined /= np.sum(combined)
         artificial_2D.append(combined)
@@ -411,6 +417,7 @@ if __name__ == "__main__":
     # Parameterize the smearing matrix
     fit_params = fit_eres_params(eres_up_T)
     np.save(join(st.LOCALPATH, "Eres_fits.npy"), fit_params)
+    # smoothed version
     smoothed_fit_params = smooth_eres_fit_params(
         fit_params, eres_up_T.bin_mids[1], s=40, k=3
     )
@@ -421,6 +428,14 @@ if __name__ == "__main__":
     artificial_2D = artificial_eres(fit_params, *eres_up_T.bins)
     artificial_2D.axis_names = eres_up_T.axis_names
     with open(join(st.LOCALPATH, "artificial_energy_smearing_MH_up.pckl"), "wb") as f:
+        pickle.dump(artificial_2D.T(), f)
+
+    ## Best reproduction based on the smoothed fit parameters
+    artificial_2D = artificial_eres(smoothed_fit_params, *eres_up_T.bins)
+    artificial_2D.axis_names = eres_up_T.axis_names
+    with open(
+        join(st.LOCALPATH, "artificial_smoothed_energy_smearing_MH_up.pckl"), "wb"
+    ) as f:
         pickle.dump(artificial_2D.T(), f)
 
     ## 1:1 reco reproduction
