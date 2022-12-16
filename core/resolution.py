@@ -24,7 +24,7 @@ def energy_smearing(ematrix, ev):
             return ev @ ematrix.T()
         except ValueError:
             return ev @ ematrix
-    else: # backward compatibility
+    else:  # backward compatibility
         return (ematrix @ ev.T).T
 
 
@@ -169,7 +169,7 @@ def get_energy_psf_grid(logE_bins, delta_psi_max=2, bins_per_psi2=25, renew_calc
     return all_grids, psi2_bins, logE_bins
 
 
-def double_erf(x, shift_l, shift_r, N=1):  # sigma_r, , sigma_l
+def double_erf(x, shift_l, shift_r, N=1):
     sigma_r = sigma_l = 0.4
     # normalized such that it goes from 0 to N and back to 0
     return (
@@ -179,10 +179,9 @@ def double_erf(x, shift_l, shift_r, N=1):  # sigma_r, , sigma_l
 
 def g_norm(x, loc, scale, N):
     return np.exp(-0.5 * ((x - loc) / scale) ** 2) * N
-    # return norm.pdf(x, loc, scale) * N
 
 
-def comb(x, shift_l, shift_r, N, loc, scale, n):  # sigma_r, sigma_l,
+def comb(x, shift_l, shift_r, N, loc, scale, n):
     return double_erf(x, shift_l, shift_r, N) + g_norm(x, loc, scale, n)
 
 
@@ -402,7 +401,7 @@ if __name__ == "__main__":
 
     # combine horizontal and upgoing resolutions
     eres_up_mh = all_E_histos["dec-0.0"] + all_E_histos["dec-50.0"]
-    eres_up_mh.normalize(axis=1) # normalize per log(E)
+    eres_up_mh.normalize(axis=1)  # normalize per log(E)
 
     with open(join(st.LOCALPATH, "energy_smearing_MH_up.pckl"), "wb") as f:
         pickle.dump(eres_up_mh, f)
