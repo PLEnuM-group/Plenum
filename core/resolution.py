@@ -28,8 +28,8 @@ def energy_smearing(ematrix, ev):
         return (ematrix @ ev.T).T
 
 
-def get_baseline_energy_res(step_size=0.1, renew_calc=False):
-    """TODO"""
+def get_baseline_energy_res_kde(step_size=0.1, renew_calc=False):
+    """OUTDATED"""
 
     filename = join(st.LOCALPATH, f"energy_smearing_2D_step-{step_size}.pckl")
     if exists(filename) and not renew_calc:
@@ -370,7 +370,7 @@ if __name__ == "__main__":
         pickle.dump(psi_e_res, f)
 
     # generate standard energy resolution
-    all_E_grids, logE_bins_old, logE_reco_bins_old = get_baseline_energy_res(
+    all_E_grids, logE_bins_old, logE_reco_bins_old = get_baseline_energy_res_kde(
         renew_calc=args.renew_calc
     )
     logE_mids_old = get_mids(logE_bins_old)
@@ -411,6 +411,15 @@ if __name__ == "__main__":
 
     with open(join(st.LOCALPATH, "energy_smearing_MH_up.pckl"), "wb") as f:
         pickle.dump(eres_up_mh, f)
+
+    # combine horizontal and upgoing resolutions of GP
+    with open(join(st.LOCALPATH, "GP_Eres_mephistograms.pckl"), "rb") as f:
+        GP_mephistograms = pickle.load(f)
+    gp_eres = GP_mephistograms["dec-0.0"] + GP_mephistograms["dec-50.0"]
+    gp_eres.normalize(axis=1)  # normalize per log(E)
+
+    with open(join(st.LOCALPATH, "energy_smearing_GP_up.pckl"), "wb") as f:
+        pickle.dump(gp_eres, f)
 
     # we need the transposed matrix for further calculations
     eres_up_T = eres_up_mh.T()
