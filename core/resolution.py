@@ -8,6 +8,14 @@ from scipy.special import erf
 import settings as st
 from tools import get_mids
 from mephisto import Mephistogram
+from pandas import read_table, DataFrame
+from itertools import product
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import (
+    ConstantKernel as C,
+    RationalQuadratic,
+    Matern
+)
 
 
 def energy_smearing(ematrix, ev):
@@ -28,10 +36,156 @@ def energy_smearing(ematrix, ev):
         return (ematrix @ ev.T).T
 
 
+def read_smearing_matrix():
+    """Read the public-data smearing matrix into a data frame."""
+
+    column_names = [
+        "logE_nu_min",
+        "logE_nu_max",
+        "Dec_nu_min",
+        "Dec_nu_max",
+        "logE_reco_min",
+        "logE_reco_max",
+        "PSF_min",
+        "PSF_max",
+        "AngErr_min",
+        "AngErr_max",
+        "Fractional_Counts",
+    ]
+
+    public_data_df = read_table(
+        join(st.BASEPATH, "resources/IC86_II_smearing.csv"),
+        delim_whitespace=True,
+        skiprows=1,
+        names=column_names,
+    )
+    return public_data_df
+
+
+def get_baseline_eres(renew_calc=False):
+    filename = join(st.LOCALPATH, "GP_Eres_mephistograms.pckl")
+    
+    if exists(filename) and not renew_calc:
+        pass
+        ### TODO ###
+        print("file exists:", filename)
+        with open(filename, "rb") as f:
+            GP_mephistograms = pickle.load(f)
+    else:
+        public_data_df = read_smearing_matrix()
+        # first step: 1D predictions per slice in neutrino energy
+        kernel = C(0.1, (1e-3, 1e3)) + RationalQuadratic(
+            length_scale_bounds=(1e-4, 1e2)
+        )
+        e_vals = np.linspace(1, 9, num=25)
+
+        e_reso_predictions = []
+
+        for (emin, decmin), series in public_data_df.groupby(
+            ["logE_nu_min", "Dec_nu_min"]
+        ):
+            (emid,) = (emin + np.unique(series.logE_nu_max)) / 2.0
+            (decmid,) = (decmin + np.unique(series.Dec_nu_max)) / 2.0
+
+            if decmin == -90:
+                alpha = 2e-3
+                # cut out misreconstructed events, they produce shitty features
+                # and the smoothing produces weird results
+                mask = series.PSF_min < 20
+                # reduce binning size
+                cur_erecobins = np.unique(
+                    np.concatenate([series.logE_reco_min, series.logE_reco_max])
+                )[::4]
+                # add an additional bin boundary at the end
+                dif = cur_erecobins[-1] - cur_erecobins[-2]
+                cur_erecobins = np.concatenate(
+                    [cur_erecobins, [cur_erecobins[-1] + dif]]
+                )
+
+            else:
+                mask = series.PSF_max < 180  # will evaluate to True everywhere
+                alpha = 1e-4
+
+                cur_erecobins = np.unique(
+                    np.concatenate([series.logE_reco_min, series.logE_reco_max])
+                )
+
+            cur_ereco_mids = (
+                series.loc[mask].logE_reco_min + series.loc[mask].logE_reco_max
+            ) / 2.0
+            h, ed = np.histogram(
+                cur_ereco_mids,
+                weights=series.loc[mask].Fractional_Counts,
+                bins=cur_erecobins,
+            )
+            mids = get_mids(ed)
+            # pad with zeros
+            mids = np.concatenate([[mids[0] - 0.5], mids, [mids[-1] + 0.5]])
+            h = np.concatenate([[0], h, [0]])
+
+            gp = GaussianProcessRegressor(
+                kernel=kernel, alpha=alpha, n_restarts_optimizer=5
+            )
+            gp.fit(mids.reshape(-1, 1), np.sqrt(h))
+
+            #
+            prediction = gp.predict(e_vals.reshape(-1, 1)) ** 2
+            # adapt prediction such that it will be 0 outside the original binning
+            prediction[e_vals > np.max(mids)] = 0
+            prediction[e_vals < np.min(mids)] = 0
+            e_reso_predictions.append(
+                {
+                    "emin": emin,
+                    "emid": emid,
+                    "e_reco_mid": mids,
+                    "decmin": decmin,
+                    "decmid": decmid,
+                    "P_ereco": prediction,
+                }
+            )
+
+        e_reso_predictions = DataFrame(e_reso_predictions)
+
+        # second step: 2D prediction based on the smoothed 1D predictions
+        GP_mephistograms = {}
+        for decmid, selection in e_reso_predictions.groupby(["decmid"]):
+            input_eres = np.sqrt(np.stack(selection.P_ereco)).flatten()
+            input_e, input_eR = np.meshgrid(selection.emid, e_vals, indexing="ij")
+            input_X = np.array([input_e.flatten(), input_eR.flatten()]).T
+
+            kernel = C(1, (1e-3, 1e3)) + Matern(nu=5 / 2)
+
+            gp = GaussianProcessRegressor(
+                kernel=kernel,
+                alpha=3e-4 if decmid == -50 else 2e-5,
+                n_restarts_optimizer=7,
+            )
+            gp.fit(input_X, input_eres)
+
+            # Input space
+            x1x2 = np.array(list(product(st.logE_mids, st.logE_reco_mids)))
+            eres_pred, MSE = gp.predict(x1x2, return_std=True)
+            eres_mesh = np.reshape(eres_pred, (len(st.logE_mids), len(st.logE_reco_mids)))
+            eres_mesh[eres_mesh<=3E-2] = 0
+
+            GP_mephistograms[f"dec-{decmid}"] = Mephistogram(
+                eres_mesh**2,
+                bins=(st.logE_bins, st.logE_reco_bins),
+                axis_names=("log(E/GeV)", "log(E_reco/GeV)"),
+            )
+            GP_mephistograms[f"dec-{decmid}"].normalize(axis=1)
+        # save to disc
+        with open(filename, "wb") as f:
+            pickle.dump(GP_mephistograms, f)
+
+    return GP_mephistograms
+
+
+
 def get_baseline_energy_res_kde(step_size=0.1, renew_calc=False):
     """OUTDATED"""
 
-    filename = join(st.LOCALPATH, f"energy_smearing_2D_step-{step_size}.pckl")
+    filename = join(st.LOCALPATH, f"energy_smearing_2D_step-{step_size}_kde.pckl")
     if exists(filename) and not renew_calc:
         print("file exists:", filename)
         with open(filename, "rb") as f:
@@ -113,7 +267,9 @@ def get_energy_psf_grid(logE_bins, delta_psi_max=2, bins_per_psi2=25, renew_calc
     all_grids: dict
         2D grids for each of the zenith bins in the smearing matrix
     psi2_bins: array
-        the coordinates of the psi2 axis
+        the bin boundaries of the psi2 axis
+    logE_bins : array
+        the bin boundaries of the logE axis
 
     """
     logE_mids = get_mids(logE_bins)
@@ -138,6 +294,16 @@ def get_energy_psf_grid(logE_bins, delta_psi_max=2, bins_per_psi2=25, renew_calc
         dec_sm_mids = (dec_sm_min + dec_sm_max) / 2.0
         fractional_event_counts = public_data_hist[:, 10]
         all_grids = {}
+
+        # psi² representation
+        psi2_bins = np.linspace(
+            0, delta_psi_max**2, num=int(delta_psi_max**2 * bins_per_psi2) + 1
+        )
+        psi2_mids = get_mids(psi2_bins)
+        log_psi_mids = np.log10(np.sqrt(psi2_mids))
+        # KDE was produced in log(E_true) and log(Psi)
+        e_eval, psi_eval = np.meshgrid(logE_mids, log_psi_mids)
+
         for dd in np.unique(dec_sm_mids):
             mask = dec_sm_mids == dd
 
@@ -147,14 +313,6 @@ def get_energy_psf_grid(logE_bins, delta_psi_max=2, bins_per_psi2=25, renew_calc
                 weights=fractional_event_counts[mask],
             )
 
-            # psi² representation
-            psi2_bins = np.linspace(
-                0, delta_psi_max**2, delta_psi_max**2 * bins_per_psi2 + 1
-            )
-            psi2_mids = get_mids(psi2_bins)
-            log_psi_mids = np.log10(np.sqrt(psi2_mids))
-            # KDE was produced in log(E_true) and log(Psi)
-            e_eval, psi_eval = np.meshgrid(logE_mids, log_psi_mids)
             psi_kvals = e_psi_kdes([e_eval.flatten(), psi_eval.flatten()]).reshape(
                 len(log_psi_mids), len(logE_mids)
             )
@@ -200,7 +358,6 @@ def fit_eres_params(eres_mephisto):
         eres_mephisto.bin_mids[1],
         dtype=[
             ("shift_l", float),  # plateau
-            # ("shift_r", float), # plateau
             ("N", float),  # plateau
             ("loc", float),  # gauss
             ("scale", float),  # gauss
@@ -225,29 +382,26 @@ def fit_eres_params(eres_mephisto):
             eres_mephisto.bin_mids[0],
             eres_mephisto.histo[:, ii],
             p0=[
-                flanks[0] + 0.1,  # shift_l
-                # flanks[1],  # shift_r
-                0.017,  # N
+                2.5, # flanks[0] + 0.1,  # shift_l
+                kv_mode * 0.3,  #0.01, # N
                 flanks[1],  # loc
                 0.5,  # scale
                 kv_mode,  # n
             ],
             bounds=[
                 (  # lower
-                    flanks[0] - 0.3,  # shift_l
-                    # flanks[0] + 0.5,  # shift_r
-                    0.007,  # 0.017 / 2,  # N
+                    2, #flanks[0] - 0.3,  # shift_l
+                    kv_mode * 0.2, #0.005, #0.007,  # N
                     1,  # loc
-                    0.1,  # scale
-                    0,  # kv_mode * 0.85,  # n
+                    0.18,  # scale
+                    kv_mode * 0.5,  #0,  #  n
                 ),
                 (  # upper
-                    flanks[0] + 1,  # shift_l
-                    # 20,  # shift_r
-                    0.5,  # N
+                    3, #flanks[0] + 1,  # shift_l
+                    0.04, #kv_mode*1.05,  # N
                     9,  # loc
                     3,  # scale
-                    0.3,  # n
+                    kv_mode*1.05, #0.3,  # n
                 ),
             ],
         )
@@ -300,9 +454,7 @@ def one2one_eres(fit_params, logE_reco_bins, logE_bins):
     artificial_2D = []
     for ii, fit_d in enumerate(fit_params):
         tmp_fit = fit_d.copy()
-        # diff = logE_mids[ii] - tmp_fit["loc"]
         tmp_fit["loc"] = logE_mids[ii]
-        # tmp_fit["shift_r"] += diff
         artificial_2D.append(comb(logE_reco_mids, *tmp_fit))
     artificial_2D = np.array(artificial_2D).T
     artificial_2D /= np.sum(artificial_2D, axis=0)
@@ -326,9 +478,7 @@ def improved_eres(impro_factor, smoothed_fit_params, logE_reco_bins, logE_bins):
         tmp_fit["n"] /= 1 + impro_factor
 
         # improve degeneracy
-        diff = logE_mids[jj] - tmp_fit["loc"]
         tmp_fit["loc"] = logE_mids[jj]
-        # tmp_fit["shift_r"] += diff
         combined = comb(logE_reco_mids, *tmp_fit)
         combined /= np.sum(combined)
         artificial_2D.append(combined)
@@ -369,52 +519,51 @@ if __name__ == "__main__":
     with open(join(st.LOCALPATH, "Psi2_res_mephistograms.pckl"), "wb") as f:
         pickle.dump(psi_e_res, f)
 
-    # generate standard energy resolution
-    all_E_grids, logE_bins_old, logE_reco_bins_old = get_baseline_energy_res_kde(
-        renew_calc=args.renew_calc
-    )
-    logE_mids_old = get_mids(logE_bins_old)
-    logE_reco_mids_old = get_mids(logE_reco_bins_old)
+    # # generate standard energy resolution
+    # all_E_grids, logE_bins_old, logE_reco_bins_old = get_baseline_energy_res_kde(
+    #     renew_calc=args.renew_calc
+    # )
+    # logE_mids_old = get_mids(logE_bins_old)
+    # logE_reco_mids_old = get_mids(logE_reco_bins_old)
+    # pad_logE = np.concatenate([[logE_bins_old[0]], logE_mids_old, [logE_bins_old[-1]]])
+    # pad_reco = np.concatenate(
+    #     [[logE_reco_bins_old[0]], logE_reco_mids_old, [logE_reco_bins_old[-1]]]
+    # )
 
-    pad_logE = np.concatenate([[logE_bins_old[0]], logE_mids_old, [logE_bins_old[-1]]])
-    pad_reco = np.concatenate(
-        [[logE_reco_bins_old[0]], logE_reco_mids_old, [logE_reco_bins_old[-1]]]
-    )
-    # update to common binning
-    lge_grid, lre_grid = np.meshgrid(st.logE_mids, st.logE_reco_mids)
-    all_E_histos = {}
-    for k in all_E_grids:
-        eres_rgi = RegularGridInterpolator(
-            (pad_reco, pad_logE),
-            np.pad(all_E_grids[k], 1, mode="edge"),
-            bounds_error=False,
-            fill_value=1e-16,
-        )
-        eres_tmp = eres_rgi((lre_grid, lge_grid))
-        eres_tmp[np.isnan(eres_tmp)] = 0
-        # normalize
-        eres_tmp /= np.sum(eres_tmp, axis=0)
+    # # update to common binning
+    # lge_grid, lre_grid = np.meshgrid(st.logE_mids, st.logE_reco_mids)
+    # all_E_histos = {}
+    # for k in all_E_grids:
+    #     eres_rgi = RegularGridInterpolator(
+    #         (pad_reco, pad_logE),
+    #         np.pad(all_E_grids[k], 1, mode="edge"),
+    #         bounds_error=False,
+    #         fill_value=1e-16,
+    #     )
+    #     eres_tmp = eres_rgi((lre_grid, lge_grid))
+    #     eres_tmp[np.isnan(eres_tmp)] = 0
+    #     # normalize
+    #     eres_tmp /= np.sum(eres_tmp, axis=0)
 
-        all_E_histos[k] = Mephistogram(
-            eres_tmp.T,
-            (st.logE_bins, st.logE_reco_bins),
-            ("log(E/GeV)", "log(E_reco/GeV)"),
-            make_hist=False,
-        )
-    # save to disk
-    with open(join(st.LOCALPATH, "Eres_mephistograms.pckl"), "wb") as f:
-        pickle.dump(all_E_histos, f)
+    #     all_E_histos[k] = Mephistogram(
+    #         eres_tmp.T,
+    #         (st.logE_bins, st.logE_reco_bins),
+    #         ("log(E/GeV)", "log(E_reco/GeV)"),
+    #         make_hist=False,
+    #     )
+    # # save to disk
+    # with open(join(st.LOCALPATH, "Eres_mephistograms.pckl"), "wb") as f:
+    #     pickle.dump(all_E_histos, f)
 
     # combine horizontal and upgoing resolutions
-    eres_up_mh = all_E_histos["dec-0.0"] + all_E_histos["dec-50.0"]
-    eres_up_mh.normalize(axis=1)  # normalize per log(E)
+    # eres_up_mh = all_E_histos["dec-0.0"] + all_E_histos["dec-50.0"]
+    # eres_up_mh.normalize(axis=1)  # normalize per log(E)
 
-    with open(join(st.LOCALPATH, "energy_smearing_MH_up.pckl"), "wb") as f:
-        pickle.dump(eres_up_mh, f)
+    # with open(join(st.LOCALPATH, "energy_smearing_MH_up.pckl"), "wb") as f:
+    #     pickle.dump(eres_up_mh, f)
 
     # combine horizontal and upgoing resolutions of GP
-    with open(join(st.LOCALPATH, "GP_Eres_mephistograms.pckl"), "rb") as f:
-        GP_mephistograms = pickle.load(f)
+    GP_mephistograms = get_baseline_eres(renew_calc=args.renew_calc)
     gp_eres = GP_mephistograms["dec-0.0"] + GP_mephistograms["dec-50.0"]
     gp_eres.normalize(axis=1)  # normalize per log(E)
 
@@ -422,13 +571,13 @@ if __name__ == "__main__":
         pickle.dump(gp_eres, f)
 
     # we need the transposed matrix for further calculations
-    eres_up_T = eres_up_mh.T()
+    eres_up_T = gp_eres.T()
     # Parameterize the smearing matrix
     fit_params = fit_eres_params(eres_up_T)
     np.save(join(st.LOCALPATH, "Eres_fits.npy"), fit_params)
     # smoothed version
     smoothed_fit_params = smooth_eres_fit_params(
-        fit_params, eres_up_T.bin_mids[1], s=40, k=3
+        fit_params, eres_up_T.bin_mids[1], s=45, k=3
     )
     np.save(join(st.LOCALPATH, "Eres_fits_smoothed.npy"), smoothed_fit_params)
 

@@ -16,7 +16,6 @@ core/plenum.egg-info
 core/plenum.egg-info/*
 resources/*_contour.txt
 Untitled.ipynb
-data.ipynb
 notebooks/sandbox
 notebooks/sandbox/*
 untitled.ipynb
