@@ -26,3 +26,13 @@ Further helpful packages include cartopy and tqdm.
 * Run `prepare_histograms.py`: it will make sure all your histograms will have the correct binning and then convert them to mephistograms.
 * Optional: Run `event_numbers.py` as preparation for skymap illustrations and the simple point-source extrapolation study.
 * Now you should be good to go to test the analysis notebooks!
+
+
+## Installation:
+Currently working solution with `conda environments`:
+* create conda env with `conda create -n new_env`
+* install `pip` within the `new_env` with `conda install -n new_env pip`
+* install `Plenum` and `mephistogram` packages editable within `new_env` after download in the respective folders with `pip install -e .`
+* possibly, you also need to install `jupyter`
+* easily install `cartopy` with conda
+-- Packaging will be provided soon! --
