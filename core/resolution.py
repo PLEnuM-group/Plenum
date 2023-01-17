@@ -14,7 +14,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import (
     ConstantKernel as C,
     RationalQuadratic,
-    Matern
+    Matern,
 )
 
 
@@ -64,10 +64,8 @@ def read_smearing_matrix():
 
 def get_baseline_eres(renew_calc=False):
     filename = join(st.LOCALPATH, "GP_Eres_mephistograms.pckl")
-    
+
     if exists(filename) and not renew_calc:
-        pass
-        ### TODO ###
         print("file exists:", filename)
         with open(filename, "rb") as f:
             GP_mephistograms = pickle.load(f)
@@ -165,8 +163,10 @@ def get_baseline_eres(renew_calc=False):
             # Input space
             x1x2 = np.array(list(product(st.logE_mids, st.logE_reco_mids)))
             eres_pred, MSE = gp.predict(x1x2, return_std=True)
-            eres_mesh = np.reshape(eres_pred, (len(st.logE_mids), len(st.logE_reco_mids)))
-            eres_mesh[eres_mesh<=3E-2] = 0
+            eres_mesh = np.reshape(
+                eres_pred, (len(st.logE_mids), len(st.logE_reco_mids))
+            )
+            eres_mesh[eres_mesh <= 3e-2] = 0
 
             GP_mephistograms[f"dec-{decmid}"] = Mephistogram(
                 eres_mesh**2,
@@ -179,7 +179,6 @@ def get_baseline_eres(renew_calc=False):
             pickle.dump(GP_mephistograms, f)
 
     return GP_mephistograms
-
 
 
 def get_baseline_energy_res_kde(step_size=0.1, renew_calc=False):
@@ -382,26 +381,26 @@ def fit_eres_params(eres_mephisto):
             eres_mephisto.bin_mids[0],
             eres_mephisto.histo[:, ii],
             p0=[
-                2.5, # flanks[0] + 0.1,  # shift_l
-                kv_mode * 0.3,  #0.01, # N
+                2.5,  # flanks[0] + 0.1,  # shift_l
+                kv_mode * 0.3,  # 0.01, # N
                 flanks[1],  # loc
                 0.5,  # scale
                 kv_mode,  # n
             ],
             bounds=[
                 (  # lower
-                    2, #flanks[0] - 0.3,  # shift_l
-                    kv_mode * 0.2, #0.005, #0.007,  # N
+                    2,  # flanks[0] - 0.3,  # shift_l
+                    kv_mode * 0.2,  # 0.005, #0.007,  # N
                     1,  # loc
                     0.18,  # scale
-                    kv_mode * 0.5,  #0,  #  n
+                    kv_mode * 0.5,  # 0,  #  n
                 ),
                 (  # upper
-                    3, #flanks[0] + 1,  # shift_l
-                    0.04, #kv_mode*1.05,  # N
+                    3,  # flanks[0] + 1,  # shift_l
+                    0.04,  # kv_mode*1.05,  # N
                     9,  # loc
                     3,  # scale
-                    kv_mode*1.05, #0.3,  # n
+                    kv_mode * 1.05,  # 0.3,  # n
                 ),
             ],
         )
@@ -498,7 +497,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--renew_calc", action="store_true")
+    parser.add_argument("--gaussian_process", action="store_true")
     args = parser.parse_args()
+    print(args)
 
     # Psi² - Energy resolution
     # already in right binning
@@ -519,59 +520,65 @@ if __name__ == "__main__":
     with open(join(st.LOCALPATH, "Psi2_res_mephistograms.pckl"), "wb") as f:
         pickle.dump(psi_e_res, f)
 
-    # # generate standard energy resolution
-    # all_E_grids, logE_bins_old, logE_reco_bins_old = get_baseline_energy_res_kde(
-    #     renew_calc=args.renew_calc
-    # )
-    # logE_mids_old = get_mids(logE_bins_old)
-    # logE_reco_mids_old = get_mids(logE_reco_bins_old)
-    # pad_logE = np.concatenate([[logE_bins_old[0]], logE_mids_old, [logE_bins_old[-1]]])
-    # pad_reco = np.concatenate(
-    #     [[logE_reco_bins_old[0]], logE_reco_mids_old, [logE_reco_bins_old[-1]]]
-    # )
+    # generate standard energy resolution based on KDEs
+    if not args.gaussian_process:
+        print("running KDE resolution smoothing")
+        all_E_grids, logE_bins_old, logE_reco_bins_old = get_baseline_energy_res_kde(
+            renew_calc=args.renew_calc
+        )
+        logE_mids_old = get_mids(logE_bins_old)
+        logE_reco_mids_old = get_mids(logE_reco_bins_old)
+        pad_logE = np.concatenate(
+            [[logE_bins_old[0]], logE_mids_old, [logE_bins_old[-1]]]
+        )
+        pad_reco = np.concatenate(
+            [[logE_reco_bins_old[0]], logE_reco_mids_old, [logE_reco_bins_old[-1]]]
+        )
+        # update to common binning
+        lge_grid, lre_grid = np.meshgrid(st.logE_mids, st.logE_reco_mids)
+        all_E_histos = {}
+        for k in all_E_grids:
+            eres_rgi = RegularGridInterpolator(
+                (pad_reco, pad_logE),
+                np.pad(all_E_grids[k], 1, mode="edge"),
+                bounds_error=False,
+                fill_value=1e-16,
+            )
+            eres_tmp = eres_rgi((lre_grid, lge_grid))
+            eres_tmp[np.isnan(eres_tmp)] = 0
+            # normalize
+            eres_tmp /= np.sum(eres_tmp, axis=0)
+            all_E_histos[k] = Mephistogram(
+                eres_tmp.T,
+                (st.logE_bins, st.logE_reco_bins),
+                ("log(E/GeV)", "log(E_reco/GeV)"),
+                make_hist=False,
+            )
+        # save to disk
+        with open(join(st.LOCALPATH, "Eres_mephistograms.pckl"), "wb") as f:
+            pickle.dump(all_E_histos, f)
+        # combine horizontal and upgoing resolutions
+        eres_up_mh = all_E_histos["dec-0.0"] + all_E_histos["dec-50.0"]
+        eres_up_mh.normalize(axis=1)  # normalize per log(E)
+        with open(join(st.LOCALPATH, "energy_smearing_MH_up.pckl"), "wb") as f:
+            pickle.dump(eres_up_mh, f)
 
-    # # update to common binning
-    # lge_grid, lre_grid = np.meshgrid(st.logE_mids, st.logE_reco_mids)
-    # all_E_histos = {}
-    # for k in all_E_grids:
-    #     eres_rgi = RegularGridInterpolator(
-    #         (pad_reco, pad_logE),
-    #         np.pad(all_E_grids[k], 1, mode="edge"),
-    #         bounds_error=False,
-    #         fill_value=1e-16,
-    #     )
-    #     eres_tmp = eres_rgi((lre_grid, lge_grid))
-    #     eres_tmp[np.isnan(eres_tmp)] = 0
-    #     # normalize
-    #     eres_tmp /= np.sum(eres_tmp, axis=0)
+        # we need the transposed matrix for further calculations
+        eres_up_T = eres_up_mh.T()
+    else:
+        print("running gaussian-process resolution smoothing")
+        ## NEW: smooth the resolution functions using gaussian processes (GP)
+        GP_mephistograms = get_baseline_eres(renew_calc=args.renew_calc)
+        # combine horizontal and upgoing resolutions
+        gp_eres = GP_mephistograms["dec-0.0"] + GP_mephistograms["dec-50.0"]
+        gp_eres.normalize(axis=1)  # normalize per log(E)
 
-    #     all_E_histos[k] = Mephistogram(
-    #         eres_tmp.T,
-    #         (st.logE_bins, st.logE_reco_bins),
-    #         ("log(E/GeV)", "log(E_reco/GeV)"),
-    #         make_hist=False,
-    #     )
-    # # save to disk
-    # with open(join(st.LOCALPATH, "Eres_mephistograms.pckl"), "wb") as f:
-    #     pickle.dump(all_E_histos, f)
+        with open(join(st.LOCALPATH, "energy_smearing_GP_up.pckl"), "wb") as f:
+            pickle.dump(gp_eres, f)
 
-    # combine horizontal and upgoing resolutions
-    # eres_up_mh = all_E_histos["dec-0.0"] + all_E_histos["dec-50.0"]
-    # eres_up_mh.normalize(axis=1)  # normalize per log(E)
+        # we need the transposed matrix for further calculations
+        eres_up_T = gp_eres.T()
 
-    # with open(join(st.LOCALPATH, "energy_smearing_MH_up.pckl"), "wb") as f:
-    #     pickle.dump(eres_up_mh, f)
-
-    # combine horizontal and upgoing resolutions of GP
-    GP_mephistograms = get_baseline_eres(renew_calc=args.renew_calc)
-    gp_eres = GP_mephistograms["dec-0.0"] + GP_mephistograms["dec-50.0"]
-    gp_eres.normalize(axis=1)  # normalize per log(E)
-
-    with open(join(st.LOCALPATH, "energy_smearing_GP_up.pckl"), "wb") as f:
-        pickle.dump(gp_eres, f)
-
-    # we need the transposed matrix for further calculations
-    eres_up_T = gp_eres.T()
     # Parameterize the smearing matrix
     fit_params = fit_eres_params(eres_up_T)
     np.save(join(st.LOCALPATH, "Eres_fits.npy"), fit_params)
