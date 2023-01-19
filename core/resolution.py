@@ -75,8 +75,7 @@ def get_baseline_eres(renew_calc=False):
         kernel = C(0.1, (1e-3, 1e3)) + RationalQuadratic(
             length_scale_bounds=(1e-4, 1e2)
         )
-        e_vals = np.linspace(1, 9, num=25)
-
+        e_vals = np.linspace(1, 9, num=100)
         e_reso_predictions = []
 
         for (emin, decmin), series in public_data_df.groupby(
@@ -86,28 +85,29 @@ def get_baseline_eres(renew_calc=False):
             (decmid,) = (decmin + np.unique(series.Dec_nu_max)) / 2.0
 
             if decmin == -90:
-                alpha = 2e-3
+                alpha = 1e-3
                 # cut out misreconstructed events, they produce shitty features
-                # and the smoothing produces weird results
-                mask = series.PSF_min < 20
+                mask = series.PSF_min < 60
                 # reduce binning size
-                cur_erecobins = np.unique(
+                raw_erecobins = np.unique(
                     np.concatenate([series.logE_reco_min, series.logE_reco_max])
                 )[::4]
-                # add an additional bin boundary at the end
-                dif = cur_erecobins[-1] - cur_erecobins[-2]
-                cur_erecobins = np.concatenate(
-                    [cur_erecobins, [cur_erecobins[-1] + dif]]
-                )
 
             else:
                 mask = series.PSF_max < 180  # will evaluate to True everywhere
-                alpha = 1e-4
+                alpha = 1.2e-4
 
-                cur_erecobins = np.unique(
+                raw_erecobins = np.unique(
                     np.concatenate([series.logE_reco_min, series.logE_reco_max])
                 )
-
+            # add additional bin boundaries to cover the whole space
+            cur_erecobins = np.concatenate(
+                [
+                    e_vals[e_vals < raw_erecobins[0]],
+                    raw_erecobins,
+                    e_vals[e_vals > raw_erecobins[-1]],
+                ]
+            )
             cur_ereco_mids = (
                 series.loc[mask].logE_reco_min + series.loc[mask].logE_reco_max
             ) / 2.0
@@ -118,25 +118,24 @@ def get_baseline_eres(renew_calc=False):
             )
             mids = get_mids(ed)
             # pad with zeros
-            mids = np.concatenate([[mids[0] - 0.5], mids, [mids[-1] + 0.5]])
-            h = np.concatenate([[0], h, [0]])
+            # mids = np.concatenate([[mids[0] - 0.5], mids, [mids[-1] + 0.5]])
+            # h = np.concatenate([[0], h, [0]])
 
             gp = GaussianProcessRegressor(
                 kernel=kernel, alpha=alpha, n_restarts_optimizer=5
             )
             gp.fit(mids.reshape(-1, 1), np.sqrt(h))
-
-            #
             prediction = gp.predict(e_vals.reshape(-1, 1)) ** 2
             # adapt prediction such that it will be 0 outside the original binning
-            prediction[e_vals > np.max(mids)] = 0
-            prediction[e_vals < np.min(mids)] = 0
+            prediction[e_vals > np.max(series.logE_reco_max)] = 0
+            prediction[e_vals < np.min(series.logE_reco_min)] = 0
+            prediction /= np.sum(prediction)  # normalize
+            # set small values to zero to avoid picking up random fluctuations at the borders
+            prediction[prediction < 2e-4] = 0
+
             e_reso_predictions.append(
                 {
-                    "emin": emin,
                     "emid": emid,
-                    "e_reco_mid": mids,
-                    "decmin": decmin,
                     "decmid": decmid,
                     "P_ereco": prediction,
                 }
@@ -497,9 +496,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--renew_calc", action="store_true")
-    parser.add_argument("--gaussian_process", action="store_true")
+    parser.add_argument("--kde", action="store_true")
     args = parser.parse_args()
-    print(args)
 
     # Psi² - Energy resolution
     # already in right binning
@@ -521,7 +519,7 @@ if __name__ == "__main__":
         pickle.dump(psi_e_res, f)
 
     # generate standard energy resolution based on KDEs
-    if not args.gaussian_process:
+    if args.kde:
         print("running KDE resolution smoothing")
         all_E_grids, logE_bins_old, logE_reco_bins_old = get_baseline_energy_res_kde(
             renew_calc=args.renew_calc
