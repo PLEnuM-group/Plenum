@@ -71,6 +71,7 @@ ra_width = np.diff(ra_bins)
 # gaussian sigma values
 sigma5 = 1 - norm.cdf(5)
 sigma3 = 1 - norm.cdf(3)
+sigma2 = 1 - norm.cdf(2)
 sigma1 = 1 - norm.cdf(1)
 
 # important object coordinates

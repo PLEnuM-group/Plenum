@@ -63,6 +63,7 @@ def read_smearing_matrix():
 
 
 def get_baseline_eres(renew_calc=False):
+    """Make a smooth energy resolution from the smearing matrix using gaussian processes in 1D and 2D."""
     filename = join(st.LOCALPATH, "GP_Eres_mephistograms.pckl")
 
     if exists(filename) and not renew_calc:
@@ -183,7 +184,7 @@ def get_baseline_eres(renew_calc=False):
 def get_baseline_energy_res_kde(step_size=0.1, renew_calc=False):
     """OUTDATED"""
 
-    filename = join(st.LOCALPATH, f"energy_smearing_2D_step-{step_size}_kde.pckl")
+    filename = join(st.LOCALPATH, f"energy_smearing_2D_step-{step_size}_KDE.pckl")
     if exists(filename) and not renew_calc:
         print("file exists:", filename)
         with open(filename, "rb") as f:
@@ -198,14 +199,12 @@ def get_baseline_energy_res_kde(step_size=0.1, renew_calc=False):
         ee, rr = np.meshgrid(logE_mids, logE_reco_mids)
 
         # load smearing matrix
-        public_data_hist = np.genfromtxt(
-            join(st.BASEPATH, "resources/IC86_II_smearing.csv"), skip_header=1
-        )
+        public_data_df = read_smearing_matrix()
 
-        log_sm_emids = (public_data_hist[:, 0] + public_data_hist[:, 1]) / 2.0
-        log_sm_ereco_mids = (public_data_hist[:, 4] + public_data_hist[:, 5]) / 2.0
-        fractional_event_counts = public_data_hist[:, 10]
-        dec_sm_min, dec_sm_max = public_data_hist[:, 2], public_data_hist[:, 3]
+        log_sm_emids = (public_data_df["logE_nu_min"] + public_data_df["logE_nu_max"]) / 2.0
+        log_sm_ereco_mids = (public_data_df["logE_reco_min"] + public_data_df["logE_reco_max"]) / 2.0
+        fractional_event_counts = public_data_df["Fractional_Counts"]
+        dec_sm_min, dec_sm_max = public_data_df["Dec_nu_min"], public_data_df["Dec_nu_max"]
         dec_sm_mids = (dec_sm_min + dec_sm_max) / 2.0
 
         # down-going (=South): -90 -> -10 deg
@@ -274,7 +273,7 @@ def get_energy_psf_grid(logE_bins, delta_psi_max=2, bins_per_psi2=25, renew_calc
     # energy-PSF function
     filename = join(
         st.LOCALPATH,
-        f"e_psf_grid_psimax-{delta_psi_max}_bins-{bins_per_psi2}.pckl",
+        f"e_psf_grid_psimax-{delta_psi_max}_bins-{bins_per_psi2}_KDE.pckl",
     )
     if exists(filename) and not renew_calc:
         print("file exists:", filename)
@@ -282,15 +281,14 @@ def get_energy_psf_grid(logE_bins, delta_psi_max=2, bins_per_psi2=25, renew_calc
             all_grids, psi2_bins, logE_bins = pickle.load(f)
     else:
         print("calculating grids...")
-        public_data_hist = np.genfromtxt(
-            join(st.BASEPATH, "resources/IC86_II_smearing.csv"), skip_header=1
-        )
-        logE_sm_min, logE_sm_max = public_data_hist[:, 0], public_data_hist[:, 1]
+        public_data_df = read_smearing_matrix()
+        
+        logE_sm_min, logE_sm_max = public_data_df["logE_nu_min"], public_data_df["logE_nu_max"]
         logE_sm_mids = (logE_sm_min + logE_sm_max) / 2.0
-        log_psf_mids = np.log10((public_data_hist[:, 6] + public_data_hist[:, 7]) / 2.0)
-        dec_sm_min, dec_sm_max = public_data_hist[:, 2], public_data_hist[:, 3]
+        log_psf_mids = np.log10((public_data_df["PSF_min"] + public_data_df["PSF_max"]) / 2.0)
+        dec_sm_min, dec_sm_max = public_data_df["Dec_nu_min"], public_data_df["Dec_nu_max"]
         dec_sm_mids = (dec_sm_min + dec_sm_max) / 2.0
-        fractional_event_counts = public_data_hist[:, 10]
+        fractional_event_counts = public_data_df["Fractional_Counts"]
         all_grids = {}
 
         # psi² representation
@@ -520,6 +518,7 @@ if __name__ == "__main__":
 
     # generate standard energy resolution based on KDEs
     if args.kde:
+        ident = "KDE"
         print("running KDE resolution smoothing")
         all_E_grids, logE_bins_old, logE_reco_bins_old = get_baseline_energy_res_kde(
             renew_calc=args.renew_calc
@@ -553,17 +552,18 @@ if __name__ == "__main__":
                 make_hist=False,
             )
         # save to disk
-        with open(join(st.LOCALPATH, "Eres_mephistograms.pckl"), "wb") as f:
+        with open(join(st.LOCALPATH, f"Eres_mephistograms_{ident}.pckl"), "wb") as f:
             pickle.dump(all_E_histos, f)
         # combine horizontal and upgoing resolutions
         eres_up_mh = all_E_histos["dec-0.0"] + all_E_histos["dec-50.0"]
         eres_up_mh.normalize(axis=1)  # normalize per log(E)
-        with open(join(st.LOCALPATH, "energy_smearing_MH_up.pckl"), "wb") as f:
+        with open(join(st.LOCALPATH, f"energy_smearing_{ident}_up.pckl"), "wb") as f:
             pickle.dump(eres_up_mh, f)
 
         # we need the transposed matrix for further calculations
         eres_up_T = eres_up_mh.T()
     else:
+        ident = "GP"
         print("running gaussian-process resolution smoothing")
         ## NEW: smooth the resolution functions using gaussian processes (GP)
         GP_mephistograms = get_baseline_eres(renew_calc=args.renew_calc)
@@ -571,7 +571,7 @@ if __name__ == "__main__":
         gp_eres = GP_mephistograms["dec-0.0"] + GP_mephistograms["dec-50.0"]
         gp_eres.normalize(axis=1)  # normalize per log(E)
 
-        with open(join(st.LOCALPATH, "energy_smearing_GP_up.pckl"), "wb") as f:
+        with open(join(st.LOCALPATH, f"energy_smearing_{ident}_up.pckl"), "wb") as f:
             pickle.dump(gp_eres, f)
 
         # we need the transposed matrix for further calculations
@@ -579,25 +579,25 @@ if __name__ == "__main__":
 
     # Parameterize the smearing matrix
     fit_params = fit_eres_params(eres_up_T)
-    np.save(join(st.LOCALPATH, "Eres_fits.npy"), fit_params)
+    np.save(join(st.LOCALPATH, f"Eres_fits_{ident}.npy"), fit_params)
     # smoothed version
     smoothed_fit_params = smooth_eres_fit_params(
         fit_params, eres_up_T.bin_mids[1], s=45, k=3
     )
-    np.save(join(st.LOCALPATH, "Eres_fits_smoothed.npy"), smoothed_fit_params)
+    np.save(join(st.LOCALPATH, f"Eres_fits_smoothed_{ident}.npy"), smoothed_fit_params)
 
     # Artificial resolution matrices
     ## Best reproduction based on the fit parameters
     artificial_2D = artificial_eres(fit_params, *eres_up_T.bins)
     artificial_2D.axis_names = eres_up_T.axis_names
-    with open(join(st.LOCALPATH, "artificial_energy_smearing_MH_up.pckl"), "wb") as f:
+    with open(join(st.LOCALPATH, f"artificial_energy_smearing_{ident}_up.pckl"), "wb") as f:
         pickle.dump(artificial_2D.T(), f)
 
     ## Best reproduction based on the smoothed fit parameters
     artificial_2D = artificial_eres(smoothed_fit_params, *eres_up_T.bins)
     artificial_2D.axis_names = eres_up_T.axis_names
     with open(
-        join(st.LOCALPATH, "artificial_smoothed_energy_smearing_MH_up.pckl"), "wb"
+        join(st.LOCALPATH, f"artificial_smoothed_energy_smearing_{ident}_up.pckl"), "wb"
     ) as f:
         pickle.dump(artificial_2D.T(), f)
 
@@ -605,7 +605,7 @@ if __name__ == "__main__":
     artificial_one2one = one2one_eres(smoothed_fit_params, *eres_up_T.bins)
     artificial_one2one.axis_names = eres_up_T.axis_names
     with open(
-        join(st.LOCALPATH, "idealized_artificial_energy_smearing_MH_up.pckl"), "wb"
+        join(st.LOCALPATH, f"idealized_artificial_energy_smearing_{ident}_up.pckl"), "wb"
     ) as f:
         pickle.dump(artificial_one2one.T(), f)
 
@@ -618,7 +618,7 @@ if __name__ == "__main__":
         artificial_2D_impro.axis_names = eres_up_T.axis_names
         filename = join(
             st.LOCALPATH,
-            f"improved_{impro_factor}_artificial_energy_smearing_MH_up.pckl",
+            f"improved_{impro_factor}_artificial_energy_smearing_{ident}_up.pckl",
         )
         with open(filename, "wb") as f:
             pickle.dump(artificial_2D_impro.T(), f)
