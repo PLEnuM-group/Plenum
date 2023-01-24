@@ -20,6 +20,23 @@ except:
     colorsys = None
 
 
+def get_scaler(x, thresh, key_x="log10(p)", key_y="scaler"):
+    """Powerlaw interpolation wrapper using a pandas.DataFrame input.
+    It takes x as the DataFrame, key_x/key_y as x and y coordinates to evaluate the DF.
+    Next, log10 of x and y is calculated such that a linear 'ax + b' polynomial fit can be applied.
+    The polynomial is then evaluated at -log10(thresh), then translated back to the original form (10**...).
+
+    Originally, this was used to calculate the threshold for discovery by interpolation.
+    That's why it looks this complicated.
+    """
+    return np.power(
+        10,
+        np.poly1d(np.polyfit(np.log10(x[key_x]), np.log10(x[key_y]), 1))(
+            np.log10(-np.log10(thresh))
+        ),
+    )
+
+
 def poisson_llh(mu_i, k_i):
     """Calculate the -2 log(Poisson LLH).
 
