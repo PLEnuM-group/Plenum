@@ -105,18 +105,11 @@ def setup_aeff_grid(aeff_baseline, sindec_mids, ra_mids, ra_width, local=False):
         + (np.arcsin(sindec_mids)[-1] - np.arcsin(sindec_mids)[-2]),
     )
     ra_endvalues = (ra_mids[0] - ra_width[0], ra_mids[-1] + ra_width[-1])
-    padded_sindec_mids = np.pad(
-        np.arcsin(sindec_mids),
-        pad_width=1,
-        mode="linear_ramp",
-        end_values=sd_endvalues,
+    padded_sindec_mids = np.concatenate(
+        [[sd_endvalues[0]], np.arcsin(sindec_mids), [sd_endvalues[1]]]
     )
-    padded_ra_mids = np.pad(
-        ra_mids,
-        pad_width=1,
-        mode="linear_ramp",
-        end_values=ra_endvalues,
-    )
+    padded_ra_mids = np.concatenate([[ra_endvalues[0]], ra_mids, [ra_endvalues[1]]])
+
     for aeff in aeff_baseline:
 
         if not local:
@@ -134,8 +127,8 @@ def setup_aeff_grid(aeff_baseline, sindec_mids, ra_mids, ra_width, local=False):
                 (padded_sindec_mids, padded_ra_mids),
                 padded_aeff,
                 method="linear",
-                bounds_error=False,
-                fill_value=0.0,
+                bounds_error=True, 
+                fill_value=0.0, # not needed actually, since bounds_error is True
             )
         )
     # grid elements are calculated for each energy bin, grid is theta x phi
@@ -164,7 +157,7 @@ def aeff_rotation(coord_lat, coord_lon, eq_coords, grid2d, ra_width):
     return np.array(
         [
             np.sum(
-                grid2d[i]((local_coords.alt.rad, local_coords.az.rad))
+                grid2d[i]((np.sin(local_coords.alt.rad), local_coords.az.rad))
                 * ra_width,  # integrate over RA
                 axis=1,
             )

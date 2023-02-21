@@ -43,7 +43,10 @@ def poisson_llh(mu_i, k_i):
     L(data k | model mu)  = prod_{i,j} mu_ij ** k_ij / k_ij! * exp(-mu_ij)
 
     For numerical stability, we directly evaluate the log of the poisson probability
-    (see https://en.wikipedia.org/wiki/Stirling%27s_approximation for approximation of the faculty function)
+    (see https://en.wikipedia.org/wiki/Stirling%27s_approximation for approximation of the faculty function).
+
+    Since we are using Asimov data that can have floating point values, we need to implement the function
+    instead of using scipy.stats.poisson.logpmf. (It fails for floats in k_i!!)
 
     -2 log (L) = -2 [k_i log(mu_i) - mu_i - 0.5 log(2 pi k_i) + k_i - k_i log(k_i)]
 
