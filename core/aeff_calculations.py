@@ -86,10 +86,11 @@ def calc_aeff_factor(aeff, ewidth, livetime, **config):
     return aeff_factor
 
 
-def setup_aeff_grid(aeff_baseline, sindec_mids, ra_mids, ra_width, local=False):
+def setup_aeff_grid(aeff_baseline, sindec_mids, ra_mids, ra_width, local=False, log_int=False):
     """
     Build a RegularGridInterpolator from the effective area, and make the corres-
-    ponding coordinate grid for evaluation.
+    ponding coordinate grid for evaluation. Note that the effective area can be
+    interpolated as log(aeff).
 
     We're a bit sloppy with the naming here and use sindec binning for any case
     but since sin(dec) = cos(theta) for IceCube, this works
@@ -99,14 +100,14 @@ def setup_aeff_grid(aeff_baseline, sindec_mids, ra_mids, ra_width, local=False):
 
     # pad the arrays so that we don't get ugly edge effects
     sd_endvalues = (
-        np.arcsin(sindec_mids)[0]
-        - (np.arcsin(sindec_mids)[1] - np.arcsin(sindec_mids)[0]),
-        np.arcsin(sindec_mids)[-1]
-        + (np.arcsin(sindec_mids)[-1] - np.arcsin(sindec_mids)[-2]),
+        sindec_mids[0]
+        - (sindec_mids[1] - sindec_mids[0]),
+        sindec_mids[-1]
+        + (sindec_mids[-1] - sindec_mids[-2]),
     )
     ra_endvalues = (ra_mids[0] - ra_width[0], ra_mids[-1] + ra_width[-1])
     padded_sindec_mids = np.concatenate(
-        [[sd_endvalues[0]], np.arcsin(sindec_mids), [sd_endvalues[1]]]
+        [[sd_endvalues[0]], sindec_mids, [sd_endvalues[1]]]
     )
     padded_ra_mids = np.concatenate([[ra_endvalues[0]], ra_mids, [ra_endvalues[1]]])
 
@@ -125,10 +126,10 @@ def setup_aeff_grid(aeff_baseline, sindec_mids, ra_mids, ra_width, local=False):
         grid2d.append(
             RegularGridInterpolator(
                 (padded_sindec_mids, padded_ra_mids),
-                padded_aeff,
+                np.log(padded_aeff) if log_int else padded_aeff,
                 method="linear",
-                bounds_error=True, 
-                fill_value=0.0, # not needed actually, since bounds_error is True
+                bounds_error=True,
+                fill_value=0.0,  # not needed actually, since bounds_error is True
             )
         )
     # grid elements are calculated for each energy bin, grid is theta x phi
@@ -139,7 +140,7 @@ def setup_aeff_grid(aeff_baseline, sindec_mids, ra_mids, ra_width, local=False):
     return grid2d, eq_coords
 
 
-def aeff_rotation(coord_lat, coord_lon, eq_coords, grid2d, ra_width):
+def aeff_rotation(coord_lat, coord_lon, eq_coords, grid2d, ra_width, log_aeff=False):
     """
     Idea: transform the integration over R.A. per sin(dec) into local coordinates
     """
@@ -154,16 +155,30 @@ def aeff_rotation(coord_lat, coord_lon, eq_coords, grid2d, ra_width):
     # sum up the contributions over the transformed RA axis per declination
     # loop over the energy bins to get the same shape of aeff as before
     # sum along transformed ra coordinates
-    return np.array(
-        [
-            np.sum(
-                grid2d[i]((np.sin(local_coords.alt.rad), local_coords.az.rad))
-                * ra_width,  # integrate over RA
-                axis=1,
-            )
-            for i in range(len(grid2d))
-        ]
-    )
+    if log_aeff:
+        return np.array(
+            [
+                np.sum(
+                    np.exp(
+                        grid2d[i]((np.sin(local_coords.alt.rad), local_coords.az.rad))
+                    )
+                    * ra_width,  # integrate over RA
+                    axis=1,
+                )
+                for i in range(len(grid2d))
+            ]
+        )
+    else:
+        return np.array(
+            [
+                np.sum(
+                    grid2d[i]((np.sin(local_coords.alt.rad), local_coords.az.rad))
+                    * ra_width,  # integrate over RA
+                    axis=1,
+                )
+                for i in range(len(grid2d))
+            ]
+        )
 
 
 def get_aeff_and_binnings(key="full", verbose=False):
@@ -213,7 +228,9 @@ if __name__ == "__main__":
 
     # cut at delta > -5deg
     min_idx = np.searchsorted(sindec_mids, np.sin(np.deg2rad(-5)))
-    print(f"Below {np.rad2deg(np.arcsin(sindec_bins[min_idx])):1.2f}deg aeff is 0")
+    print(
+        f"Below {np.rad2deg(np.arcsin(sindec_bins[min_idx])):1.2f} deg, A_eff is set to 0"
+    )
     aeff_2d["icecube"] = np.copy(aeff_2d["icecube_full"])
     aeff_2d["icecube"][:, :min_idx] = 0
 
@@ -227,7 +244,7 @@ if __name__ == "__main__":
 
     print("starting aeff rotations")
     grid2d, eq_coords = setup_aeff_grid(
-        aeff_2d["icecube"], sindec_mids, ra_mids, ra_width
+        aeff_2d["icecube"], sindec_mids, ra_mids, ra_width, log_int=True
     )
     aeff_i = {}
     aeff_i["Plenum-1"] = np.zeros_like(aeff_2d["icecube"])
@@ -235,7 +252,7 @@ if __name__ == "__main__":
     # loop over detectors
     for k in ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"]:
         aeff_i[k] = aeff_rotation(
-            poles[k]["lat"], poles[k]["lon"], eq_coords, grid2d, ra_width
+            poles[k]["lat"], poles[k]["lon"], eq_coords, grid2d, ra_width, log_aeff=True
         )
         aeff_i["Plenum-1"] += aeff_i[k]
 
@@ -253,7 +270,7 @@ if __name__ == "__main__":
     # same but wit FULL icecube effective area
     print("starting full effective area calculation...")
     grid2d, eq_coords = setup_aeff_grid(
-        aeff_2d["icecube_full"], sindec_mids, ra_mids, ra_width
+        aeff_2d["icecube_full"], sindec_mids, ra_mids, ra_width, log_int=True
     )
 
     aeff_i_full = {}
@@ -262,7 +279,7 @@ if __name__ == "__main__":
     # loop over detectors
     for k in ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"]:
         aeff_i_full[k] = aeff_rotation(
-            poles[k]["lat"], poles[k]["lon"], eq_coords, grid2d, ra_width
+            poles[k]["lat"], poles[k]["lon"], eq_coords, grid2d, ra_width, log_aeff=True
         )
         aeff_i_full["Plenum-1"] += aeff_i_full[k]
 
