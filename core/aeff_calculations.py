@@ -86,7 +86,9 @@ def calc_aeff_factor(aeff, ewidth, livetime, **config):
     return aeff_factor
 
 
-def setup_aeff_grid(aeff_baseline, sindec_mids, ra_mids, ra_width, local=False, log_int=False):
+def setup_aeff_grid(
+    aeff_baseline, sindec_mids, ra_, ra_width, local=False, log_int=False
+):
     """
     Build a RegularGridInterpolator from the effective area, and make the corres-
     ponding coordinate grid for evaluation. Note that the effective area can be
@@ -99,43 +101,35 @@ def setup_aeff_grid(aeff_baseline, sindec_mids, ra_mids, ra_width, local=False, 
     grid2d = []
 
     # pad the arrays so that we don't get ugly edge effects
-    sd_endvalues = (
-        sindec_mids[0]
-        - (sindec_mids[1] - sindec_mids[0]),
-        sindec_mids[-1]
-        + (sindec_mids[-1] - sindec_mids[-2]),
-    )
-    ra_endvalues = (ra_mids[0] - ra_width[0], ra_mids[-1] + ra_width[-1])
-    padded_sindec_mids = np.concatenate(
-        [[sd_endvalues[0]], sindec_mids, [sd_endvalues[1]]]
-    )
-    padded_ra_mids = np.concatenate([[ra_endvalues[0]], ra_mids, [ra_endvalues[1]]])
+    padded_sindec_mids = np.concatenate([[-1], sindec_mids, [1]])
 
     for aeff in aeff_baseline:
+        padded_aeff = np.pad(aeff, pad_width=1, mode="edge")
 
         if not local:
             # this is the IceCube case, where we need to spin
             # a_eff "upside down" from equatorial to local coordinates
-            padded_aeff = aeff[::-1, np.newaxis] / np.atleast_2d(ra_width)
+            padded_aeff = (
+                padded_aeff[::-1, np.newaxis] / ra_width * np.ones((1, len(ra_)))
+            )
         else:
-            padded_aeff = aeff[:, np.newaxis] / np.atleast_2d(ra_width)
+            padded_aeff = padded_aeff[:, np.newaxis] / ra_width * np.ones((1, len(ra_)))
         # added ra as new axis and normalize accordingly
-        padded_aeff /= len(ra_mids)
+        padded_aeff /= len(ra_)
         # pad the arrays so that we don't get ugly edge effects
-        padded_aeff = np.pad(padded_aeff, pad_width=1, mode="edge")
         grid2d.append(
             RegularGridInterpolator(
-                (padded_sindec_mids, padded_ra_mids),
+                (padded_sindec_mids, ra_),
                 np.log(padded_aeff) if log_int else padded_aeff,
-                method="linear",
-                bounds_error=True,
-                fill_value=0.0,  # not needed actually, since bounds_error is True
+                method="pchip",
+                bounds_error=False,
+                fill_value=None,
             )
         )
     # grid elements are calculated for each energy bin, grid is theta x phi
     # coordinate grid in equatorial coordinates (icrs)
     # these will be the integration coordinates (without padding)
-    pp, tt = np.meshgrid(ra_mids, np.arcsin(sindec_mids))
+    pp, tt = np.meshgrid(ra_, np.arcsin(sindec_mids))
     eq_coords = SkyCoord(pp * u.radian, tt * u.radian, frame="icrs")
     return grid2d, eq_coords
 
@@ -244,7 +238,7 @@ if __name__ == "__main__":
 
     print("starting aeff rotations")
     grid2d, eq_coords = setup_aeff_grid(
-        aeff_2d["icecube"], sindec_mids, ra_mids, ra_width, log_int=True
+        aeff_2d["icecube"], sindec_mids, ra_mids, ra_width, log_int=False
     )
     aeff_i = {}
     aeff_i["Plenum-1"] = np.zeros_like(aeff_2d["icecube"])
@@ -252,7 +246,12 @@ if __name__ == "__main__":
     # loop over detectors
     for k in ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"]:
         aeff_i[k] = aeff_rotation(
-            poles[k]["lat"], poles[k]["lon"], eq_coords, grid2d, ra_width, log_aeff=True
+            poles[k]["lat"],
+            poles[k]["lon"],
+            eq_coords,
+            grid2d,
+            ra_width,
+            log_aeff=False,
         )
         aeff_i["Plenum-1"] += aeff_i[k]
 
@@ -270,7 +269,7 @@ if __name__ == "__main__":
     # same but wit FULL icecube effective area
     print("starting full effective area calculation...")
     grid2d, eq_coords = setup_aeff_grid(
-        aeff_2d["icecube_full"], sindec_mids, ra_mids, ra_width, log_int=True
+        aeff_2d["icecube_full"], sindec_mids, ra_mids, ra_width, log_int=False
     )
 
     aeff_i_full = {}
@@ -279,7 +278,12 @@ if __name__ == "__main__":
     # loop over detectors
     for k in ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"]:
         aeff_i_full[k] = aeff_rotation(
-            poles[k]["lat"], poles[k]["lon"], eq_coords, grid2d, ra_width, log_aeff=True
+            poles[k]["lat"],
+            poles[k]["lon"],
+            eq_coords,
+            grid2d,
+            ra_width,
+            log_aeff=False,
         )
         aeff_i_full["Plenum-1"] += aeff_i_full[k]
 

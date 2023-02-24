@@ -5,7 +5,7 @@ import pickle
 from os.path import join
 
 import numpy as np
-from aeff_calculations import get_aeff_and_binnings
+from aeff_calculations import get_aeff_and_binnings, setup_aeff_grid, aeff_rotation
 from scipy.interpolate import RegularGridInterpolator
 import settings as st
 from tools import get_mids
@@ -54,28 +54,43 @@ for hemi in keys:
     with open(join(st.LOCALPATH, f"effective_area_MH_{hemi}.pckl"), "wb") as f:
         pickle.dump(aeff_2d, f)
 
+# atmospheric neutrino background
 # Calculation can be found in `atmospheric_background.py`
 # MCEQ
 with open(join(st.BASEPATH, "resources/MCEq_flux.pckl"), "rb") as f:
     (e_grid, zen), flux_def = pickle.load(f)
-# re-bin the atmospheric background flux
+# set up the interpolation function
+sindec_mids_bg = -np.cos(np.deg2rad(zen))
 rgi = RegularGridInterpolator(
-    (e_grid, -np.cos(np.deg2rad(zen))), np.log(flux_def["numu_total"])
+    (e_grid, sindec_mids_bg), np.log(flux_def["numu_total"])
 )
-# baseline evaluation grid
+
+# finer interpolation for further steps
 ss, em = np.meshgrid(st.sindec_mids, st.emids)
-bckg_histo = Mephistogram(
-    np.exp(rgi((em, ss))).T,
-    (st.sindec_bins, st.logE_bins),
-    ("sin(dec)", "log(E/GeV)"),
-    make_hist=False,
+numu_bg = np.exp(rgi((em, ss)))
+
+grid2d, eq_coords = setup_aeff_grid(
+    numu_bg, st.sindec_mids, st.ra_mids, st.ra_width, log_int=True
 )
+
+# loop over detectors and rotate the local background flux to equatorial coordinates
+# i.e. calculate the average bg flux per day in equatorial sin(dec)
+bg_i = {}
+det_list = ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"]
+for k in det_list:
+    bg_i[k] = Mephistogram(
+        aeff_rotation(
+            st.poles[k]["lat"], st.poles[k]["lon"], eq_coords, grid2d, st.ra_width, log_aeff=True).T,
+        (st.sindec_bins, st.logE_bins),
+        ("sin(dec)", "log(E/GeV)"),
+        make_hist=False,
+    )
 
 # check if histos are matching
-print(bckg_histo.match(aeff_2d["IceCube"], verbose=True))
+print(bg_i["IceCube"].match(aeff_2d["IceCube"], verbose=True))
 
 with open(join(st.LOCALPATH, "atmospheric_background_MH.pckl"), "wb") as f:
-    pickle.dump(bckg_histo, f)
+    pickle.dump(bg_i, f)
 
 # # Energy resolution function
 # Calculation can be found in `resolution.py`
