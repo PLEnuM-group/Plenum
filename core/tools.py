@@ -66,7 +66,7 @@ def poisson_llh(mu_i, k_i):
     log_LLH[_mask] = 0
     # k > 0, mu==0: should not happen! we'll assign a very negative value
     _mask = (k_i > 0) & (mu_i == 0)
-    log_LLH[_mask] = -1000
+    log_LLH[_mask] = -1E16
     # k > 0, mu > 0
     _mask = (k_i > 0) & (mu_i > 0)
     log_LLH[_mask] = (
