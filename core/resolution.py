@@ -6,9 +6,9 @@ from scipy.interpolate import UnivariateSpline, RegularGridInterpolator
 from scipy.optimize import curve_fit
 from scipy.special import erf
 import settings as st
-from tools import get_mids
+from tools import get_mids, read_smearing_matrix
 from mephisto import Mephistogram
-from pandas import read_table, DataFrame
+from pandas import DataFrame
 from itertools import product
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import (
@@ -34,32 +34,6 @@ def energy_smearing(ematrix, ev):
             return ev @ ematrix
     else:  # backward compatibility
         return (ematrix @ ev.T).T
-
-
-def read_smearing_matrix():
-    """Read the public-data smearing matrix into a data frame."""
-
-    column_names = [
-        "logE_nu_min",
-        "logE_nu_max",
-        "Dec_nu_min",
-        "Dec_nu_max",
-        "logE_reco_min",
-        "logE_reco_max",
-        "PSF_min",
-        "PSF_max",
-        "AngErr_min",
-        "AngErr_max",
-        "Fractional_Counts",
-    ]
-
-    public_data_df = read_table(
-        join(st.BASEPATH, "resources/IC86_II_smearing.csv"),
-        delim_whitespace=True,
-        skiprows=1,
-        names=column_names,
-    )
-    return public_data_df
 
 
 def get_baseline_eres(renew_calc=False):
