@@ -1,12 +1,19 @@
 # This file contains a selection of functions that are used within
 # the Plenum notebooks
 import numpy as np
+from pathlib import Path
 from matplotlib.ticker import NullLocator
 import matplotlib.colors as mc
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from scipy.stats import norm
 from scipy.interpolate import UnivariateSpline
+from pandas import read_table
+from os.path import join
+
+# get the baseline path of this project
+tmp_path = str(Path(__file__).parent.resolve())
+BASEPATH = "/".join(tmp_path.split("/")[:-1])
 
 try:
     import healpy as hp
@@ -18,6 +25,50 @@ try:
     import colorsys
 except:
     colorsys = None
+
+
+def read_effective_area():
+    column_names = [
+        "logE_nu_min",
+        "logE_nu_max",
+        "Dec_nu_min",
+        "Dec_nu_max",
+        "A_eff",
+    ]
+
+    public_data_aeff = read_table(
+        join(BASEPATH, "resources/IC86_II_effectiveArea.csv"),
+        delim_whitespace=True,
+        skiprows=1,
+        names=column_names,
+    )
+    return public_data_aeff
+
+
+def read_smearing_matrix():
+    """Read the public-data smearing matrix into a data frame."""
+
+    column_names = [
+        "logE_nu_min",
+        "logE_nu_max",
+        "Dec_nu_min",
+        "Dec_nu_max",
+        "logE_reco_min",
+        "logE_reco_max",
+        "PSF_min",
+        "PSF_max",
+        "AngErr_min",
+        "AngErr_max",
+        "Fractional_Counts",
+    ]
+
+    public_data_df = read_table(
+        join(BASEPATH, "resources/IC86_II_smearing.csv"),
+        delim_whitespace=True,
+        skiprows=1,
+        names=column_names,
+    )
+    return public_data_df
 
 
 def get_scaler(x, thresh, key_x="log10(p)", key_y="scaler"):
@@ -66,7 +117,7 @@ def poisson_llh(mu_i, k_i):
     log_LLH[_mask] = 0
     # k > 0, mu==0: should not happen! we'll assign a very negative value
     _mask = (k_i > 0) & (mu_i == 0)
-    log_LLH[_mask] = -1E16
+    log_LLH[_mask] = -1e16
     # k > 0, mu > 0
     _mask = (k_i > 0) & (mu_i > 0)
     log_LLH[_mask] = (

@@ -13,8 +13,11 @@ from settings import (
     poles,
     ra_mids,
     ra_width,
+    interpolation_method,
 )
-from tools import get_mids, array_source_interp
+import settings as st
+from tools import get_mids, array_source_interp, read_effective_area
+
 
 # with three dimensions: sindec, energy, ra
 def aeff_eval(aeff, sindec_width, e_width, ra_width):
@@ -87,7 +90,13 @@ def calc_aeff_factor(aeff, ewidth, livetime, **config):
 
 
 def setup_aeff_grid(
-    aeff_baseline, sindec_mids, ra_, ra_width, local=False, log_int=False
+    aeff_baseline,
+    sindec_mids,
+    ra_,
+    ra_width,
+    local=False,
+    log_int=False,
+    method=interpolation_method,
 ):
     """
     Build a RegularGridInterpolator from the effective area, and make the corres-
@@ -102,7 +111,7 @@ def setup_aeff_grid(
 
     # pad the arrays so that we don't get ugly edge effects
     padded_sindec_mids = np.concatenate([[-1], sindec_mids, [1]])
-
+    # loop over rows of aeff = per slice in energy
     for aeff in aeff_baseline:
         padded_aeff = np.pad(aeff, pad_width=1, mode="edge")
 
@@ -121,7 +130,7 @@ def setup_aeff_grid(
             RegularGridInterpolator(
                 (padded_sindec_mids, ra_),
                 np.log(padded_aeff) if log_int else padded_aeff,
-                method="pchip",
+                method=method,  # pchip is slow, but accurate
                 bounds_error=False,
                 fill_value=None,
             )
@@ -137,6 +146,11 @@ def setup_aeff_grid(
 def aeff_rotation(coord_lat, coord_lon, eq_coords, grid2d, ra_width, log_aeff=False):
     """
     Idea: transform the integration over R.A. per sin(dec) into local coordinates
+
+    Disclaimer: the local coordinate trafo will not 100%-accurately recover
+    the original coordinates if you're at the north pole. it accounts for the
+    minuscle wobble of Earth's axis wrt. equatorial coordinates.
+
     """
     # local detector
     loc = EarthLocation(lat=coord_lat, lon=coord_lon)
@@ -194,51 +208,81 @@ def get_aeff_and_binnings(key="full", verbose=False):
     return aeff_2d, log_ebins, ebins, sindec_bins
 
 
+def padded_interpolation(array, *bins, **rgi_kwargs):
+    if np.ndim(array) == 1:
+        bins = (bins,)
+    assert np.ndim(array) == len(bins), "axes dimensions don't match"
+
+    # get coordinate mids
+    mids = []
+    for b in bins:
+        mids.append(get_mids(b))
+
+    # add the bin boundaries back in at the beginning and end
+    padded_mids = []
+    for i, m in enumerate(mids):
+        padded_mids.append(np.concatenate([[bins[i][0]], m, [bins[i][-1]]]))
+
+    # return the rgi of the array padded with its edge values
+    return RegularGridInterpolator(
+        padded_mids, np.pad(array, 1, mode="edge"), **rgi_kwargs
+    )
+
+
 if __name__ == "__main__":
     # get all info from data release first
-    d_public = np.genfromtxt(
-        join(BASEPATH, "resources/IC86_II_effectiveArea.csv"), skip_header=1
-    )
+    public_data_aeff = read_effective_area()
     # log10(E_nu/GeV)_min log10(E_nu/GeV)_max
     # Dec_nu_min[deg] Dec_nu_max[deg]
     # A_Eff[cm^2]
-    # the file contains all bin edges
-    aeff = d_public[:, 4]
 
-    sindec_bins = np.unique(np.sin(np.deg2rad([d_public[:, 2], d_public[:, 3]])))
+    # the file contains all bin edges
+
+    sindec_bins = np.unique(
+        np.sin(np.deg2rad([public_data_aeff.Dec_nu_min, public_data_aeff.Dec_nu_max]))
+    )
     sindec_bins = np.round(sindec_bins, 2)
     sindec_mids = get_mids(sindec_bins)
     sindec_width = np.diff(sindec_bins)
 
-    log_ebins = np.unique([d_public[:, 0], d_public[:, 1]])
+    log_ebins = np.unique([public_data_aeff.logE_nu_min, public_data_aeff.logE_nu_max])
     ebins = np.power(10, log_ebins)
     emids = get_mids(ebins)
     ewidth = np.diff(ebins)
 
-    aeff_2d = dict()
     # re-shape into 2D array with (A(E) x A(delta))
     # and switch the eff area ordering
-    aeff_2d["icecube_full"] = aeff.reshape(len(sindec_mids), len(emids)).T
+    aeff_icecube_full = (
+        public_data_aeff["A_eff"].values.reshape(len(sindec_mids), len(emids)).T
+    )
+
+    # some event numbers for checking
+    aeff_factor = (
+        (aeff_icecube_full * sindec_width).T * ewidth * LIVETIME * np.sum(ra_width)
+    )
+    astro_ev = aeff_factor * (emids / 1e5) ** (-GAMMA_ASTRO) * PHI_ASTRO
+    print("icecube (full) astro events:", np.sum(astro_ev))
+    # should be something like 2300 neutrinos for given parameters
+
+    # finer interpolation for further steps
+    rgi = padded_interpolation(
+        aeff_icecube_full, ebins, sindec_bins, method=interpolation_method
+    )
+    ss, em = np.meshgrid(st.sindec_mids, st.emids)
+    aeff_2d = dict()
+    aeff_2d["icecube_full"] = rgi((em, ss))  # np.exp(rgi((em, ss)))
 
     # cut at delta > -5deg
-    min_idx = np.searchsorted(sindec_mids, np.sin(np.deg2rad(-5)))
+    min_idx = np.searchsorted(st.sindec_mids, np.sin(np.deg2rad(-5)))
     print(
         f"Below {np.rad2deg(np.arcsin(sindec_bins[min_idx])):1.2f} deg, A_eff is set to 0"
     )
     aeff_2d["icecube"] = np.copy(aeff_2d["icecube_full"])
     aeff_2d["icecube"][:, :min_idx] = 0
 
-    # some event numbers for checking
-    det = "icecube"
-    aeff_factor = (aeff_2d[det] * sindec_width).T * ewidth * LIVETIME * np.sum(ra_width)
-    astro_ev = aeff_factor * (emids / 1e5) ** (-GAMMA_ASTRO) * PHI_ASTRO
-    print(det)
-    print("astro events:", np.sum(astro_ev))
-    # should be something like 2300 neutrinos for given parameters
-
     print("starting aeff rotations")
     grid2d, eq_coords = setup_aeff_grid(
-        aeff_2d["icecube"], sindec_mids, ra_mids, ra_width, log_int=False
+        aeff_2d["icecube"], st.sindec_mids, st.ra_mids, st.ra_width, log_int=False
     )
     aeff_i = {}
     aeff_i["Plenum-1"] = np.zeros_like(aeff_2d["icecube"])
@@ -264,12 +308,12 @@ if __name__ == "__main__":
     savefile = join(BASEPATH, "resources/tabulated_logE_sindec_aeff_upgoing.pckl")
     print("Saving up-going effective areas to", savefile)
     with open(savefile, "wb") as f:
-        pickle.dump((np.log10(ebins), sindec_bins, aeff_i), f)
+        pickle.dump((st.logE_bins, st.sindec_bins, aeff_i), f)
 
     # same but wit FULL icecube effective area
     print("starting full effective area calculation...")
     grid2d, eq_coords = setup_aeff_grid(
-        aeff_2d["icecube_full"], sindec_mids, ra_mids, ra_width, log_int=False
+        aeff_2d["icecube_full"], st.sindec_mids, st.ra_mids, st.ra_width, log_int=False
     )
 
     aeff_i_full = {}
@@ -297,6 +341,6 @@ if __name__ == "__main__":
     savefile = join(BASEPATH, "resources/tabulated_logE_sindec_aeff_full.pckl")
     print("Saving full effective areas to", savefile)
     with open(savefile, "wb") as f:
-        pickle.dump((log_ebins, sindec_bins, aeff_i_full), f)
+        pickle.dump((st.logE_bins, st.sindec_bins, aeff_i_full), f)
 
     print("finished!")

@@ -19,6 +19,8 @@ if not exists(LOCALPATH):
     makedirs(LOCALPATH)
     print("Created local directory", LOCALPATH)
 
+interpolation_method = "linear"  # for all interpolators
+
 E_MIN = 2  # 100 GeV
 E_MAX = 9  # 10⁹ GeV = 1 EeV
 LIVETIME = 3186 * 24 * 3600  # new ngc paper
