@@ -14,6 +14,7 @@ from settings import (
     ra_mids,
     ra_width,
     interpolation_method,
+    GEN2_FACTOR
 )
 import settings as st
 from tools import get_mids, array_source_interp, read_effective_area
@@ -300,7 +301,7 @@ if __name__ == "__main__":
         aeff_i["Plenum-1"] += aeff_i[k]
 
     ## GEN-2 will have ~7.5x effective area ==> 5times better discovery potential
-    aeff_i["Gen-2"] = aeff_i["IceCube"] * 5 ** (1 / 0.8)
+    aeff_i["Gen-2"] = aeff_i["IceCube"] *GEN2_FACTOR
     ## in plenum-2, IC is replaced by Gen-2
     aeff_i["Plenum-2"] = aeff_i["Plenum-1"] - aeff_i["IceCube"] + aeff_i["Gen-2"]
 
@@ -332,7 +333,7 @@ if __name__ == "__main__":
         aeff_i_full["Plenum-1"] += aeff_i_full[k]
 
     # GEN-2 will have ~7.5x effective area ==> 5times better discovery potential
-    aeff_i_full["Gen-2"] = aeff_i_full["IceCube"] * 5 ** (1 / 0.8)
+    aeff_i_full["Gen-2"] = aeff_i_full["IceCube"] *GEN2_FACTOR
     aeff_i_full["Plenum-2"] = (
         aeff_i_full["Plenum-1"] - aeff_i_full["IceCube"] + aeff_i_full["Gen-2"]
     )

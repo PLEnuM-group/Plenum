@@ -108,6 +108,7 @@ many_colors = np.array(many_colors, dtype=object)
 
 # define location of experiments
 # and plot settings
+GEN2_FACTOR = 7.5
 poles = {
     "IceCube": {
         "lon": 1 * u.deg,
