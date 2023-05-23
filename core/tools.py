@@ -101,7 +101,7 @@ def poisson_llh(mu_i, k_i):
 
     -2 log (L) = -2 [k_i log(mu_i) - mu_i - 0.5 log(2 pi k_i) + k_i - k_i log(k_i)]
 
-    We treat some special cases that cause problems in log:
+    We treat some special cases that may cause problems in log:
 
     * mu -> 0, k>0     --> P -> 0
     * k -> 0, mu>0     --> P -> exp(-mu)
