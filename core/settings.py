@@ -109,6 +109,15 @@ many_colors = np.array(many_colors, dtype=object)
 # define location of experiments
 # and plot settings
 GEN2_FACTOR = 7.5
+detector_configurations = {
+    "IceCube": (["IceCube"], [1]),
+    "IceCube-Gen2": (["IceCube"], [GEN2_FACTOR]),
+    "P-ONE": (["IceCube", "P-ONE"], [2, 1]),
+    "KM3NeT": (["IceCube", "KM3NeT"], [2, 1]),
+    "Plenum-1": (["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"], [2, 1, 1, 1]),
+    "Plenum-2": (["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"], [1 + GEN2_FACTOR, 1, 1, 1]),
+}
+
 poles = {
     "IceCube": {
         "lon": 1 * u.deg,
