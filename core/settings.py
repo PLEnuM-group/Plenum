@@ -10,6 +10,9 @@ import warnings
 from tools import get_mids
 from scipy.stats import norm
 
+import mkl
+mkl.set_num_threads(1)
+
 # get the baseline path of this project
 tmp_path = str(Path(__file__).parent.resolve())
 BASEPATH = "/".join(tmp_path.split("/")[:-1])
@@ -112,8 +115,8 @@ GEN2_FACTOR = 7.5
 detector_configurations = {
     "IceCube": (["IceCube"], [1]),
     "IceCube-Gen2": (["IceCube"], [GEN2_FACTOR]),
-    "P-ONE": (["IceCube", "P-ONE"], [2, 1]),
-    "KM3NeT": (["IceCube", "KM3NeT"], [2, 1]),
+    "P-ONE": (["IceCube", "P-ONE"], [1, 1]),
+    "KM3NeT": (["IceCube", "KM3NeT"], [1, 1]),
     "Plenum-1": (["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"], [2, 1, 1, 1]),
     "Plenum-2": (["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"], [1 + GEN2_FACTOR, 1, 1, 1]),
 }
