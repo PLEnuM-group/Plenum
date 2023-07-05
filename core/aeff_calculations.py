@@ -4,7 +4,7 @@ import pickle
 import astropy.units as u
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import RegularGridInterpolator, griddata, RectBivariateSpline
 from settings import (
     BASEPATH,
     LIVETIME,
@@ -255,6 +255,25 @@ if __name__ == "__main__":
     aeff_icecube_full = (
         public_data_aeff["A_eff"].values.reshape(len(sindec_mids), len(emids)).T
     )
+    x = np.arange(0, aeff_icecube_full.shape[1])
+    y = np.arange(0, aeff_icecube_full.shape[0])
+    # mask invalid values
+    array = np.ma.masked_invalid(np.log10(aeff_icecube_full))
+    xx, yy = np.meshgrid(x, y)
+    # get only the valid values
+    x1 = xx[~array.mask]
+    y1 = yy[~array.mask]
+    newarr = array[~array.mask]
+
+    GD1 = griddata((x1, y1), newarr.ravel(), (xx, yy), method="cubic")
+    GD1[np.isnan(GD1)] = -7
+
+    interp_aeff = 10**GD1
+    interp_aeff[np.isnan(interp_aeff)] = 0
+    smth_aeff_spl = RectBivariateSpline(x, y, GD1.T, s=20)
+
+    aeff_icecube_full = 10 ** smth_aeff_spl(x, y).T
+    aeff_icecube_full[aeff_icecube_full<1E-4] = 0
 
     # some event numbers for checking
     aeff_factor = (
