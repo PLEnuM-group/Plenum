@@ -11,7 +11,6 @@ from settings import (
     GAMMA_ASTRO,
     PHI_ASTRO,
     poles,
-    ra_mids,
     ra_width,
     interpolation_method,
     GEN2_FACTOR

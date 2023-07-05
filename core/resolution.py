@@ -487,7 +487,7 @@ if __name__ == "__main__":
             make_hist=False,
         )
     # save to disk
-    with open(join(st.LOCALPATH, "Psi2_res_mephistograms.pckl"), "wb") as f:
+    with open(join(st.LOCALPATH, f"Psi2-{st.delta_psi_max}_res_mephistograms.pckl"), "wb") as f:
         pickle.dump(psi_e_res, f)
 
     # generate standard energy resolution based on KDEs
