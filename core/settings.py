@@ -52,7 +52,7 @@ logE_reco_bins = np.arange(2, 9.0, step=step)
 sindec_bins = np.linspace(-1, 1, num=101)
 ra_bins = np.linspace(0, np.pi * 2, num=100)
 
-delta_psi_max = 3 # 3 for soft spectra, 1 for hard spectra
+delta_psi_max = 2 # 3 for soft spectra, 1 for hard spectra
 bins_per_psi2 = 25
 psi2_bins = np.linspace(
     0, delta_psi_max**2, num=int(delta_psi_max**2 * bins_per_psi2) + 1
