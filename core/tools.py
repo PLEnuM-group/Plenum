@@ -572,7 +572,7 @@ def add_plane(ax, coords="ra", color="black", label="Galactic center/plane", **k
         c=color,
         linestyle="dotted",
         label=label,
-        alpha=0.8,
+        alpha=kwargs.pop("alpha", 0.8),
         **kwargs
     )
 
@@ -626,8 +626,33 @@ def add_obj(ax, name, coords="ra", marker="o", c="red", **kwargs):
         label=kwargs.pop("label", labels[name]),
         **kwargs
     )
-
     return
+
+def add_src(ax, src, label, coords="ra", dec_line=False, marker="o", c="red", **kwargs):
+
+    if coords == "ra":
+        # change coordinates for skymap plotting
+        _ra, _dec = _trans(src.ra.rad, src.dec.rad)
+    else:
+        _ra, _dec = src.ra.rad, src.dec.rad
+    if "transform" in kwargs:
+        _ra, _dec = np.rad2deg(_ra), np.rad2deg(_dec)
+
+    ax.plot(
+        _ra,
+        _dec,
+        marker=marker,
+        ms=15,
+        c=c,
+        linestyle="None",
+        label=label,
+        **kwargs
+    )
+    if dec_line:
+        rr = np.linspace(0, np.pi*2)
+        ax.plot(np.pi - rr, np.full_like(rr, _dec), c=c, ls="-", **kwargs)
+    return
+
 
 
 def add_extended_plane(ax, color="black", ngrid=500, **kwargs):
