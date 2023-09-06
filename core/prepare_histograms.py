@@ -134,7 +134,7 @@ if False:
     # # Psi²
     # Calculation can be found in `resolution.py`
     # angular resolution
-    with open(join(st.LOCALPATH, "Psi2_res_mephistograms.pckl"), "rb") as f:
+    with open(join(st.LOCALPATH, f"Psi2-{st.delta_psi_max}_res_mephistograms.pckl"), "rb") as f:
         all_psi = pickle.load(f)
     e_psi2_grid = all_psi["dec-0.0"]
     e_psi2_grid.normalize()

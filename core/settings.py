@@ -52,7 +52,7 @@ logE_reco_bins = np.arange(2, 9.0, step=step)
 sindec_bins = np.linspace(-1, 1, num=101)
 ra_bins = np.linspace(0, np.pi * 2, num=100)
 
-delta_psi_max = 2 # 3 for soft spectra, 1 for hard spectra
+delta_psi_max = 3 # 3 for soft spectra, 1 for hard spectra
 bins_per_psi2 = 25
 psi2_bins = np.linspace(
     0, delta_psi_max**2, num=int(delta_psi_max**2 * bins_per_psi2) + 1
@@ -73,11 +73,11 @@ sindec_width = np.diff(sindec_bins)
 ra_mids = get_mids(ra_bins)
 ra_width = np.diff(ra_bins)
 
-# gaussian sigma values
-sigma5 = 1 - norm.cdf(5)
-sigma3 = 1 - norm.cdf(3)
-sigma2 = 1 - norm.cdf(2)
-sigma1 = 1 - norm.cdf(1)
+# gaussian sigma values, one sided
+sigma5 = (1 - norm.cdf(5)) / 2
+sigma3 = (1 - norm.cdf(3)) / 2
+sigma2 = (1 - norm.cdf(2)) / 2
+sigma1 = (1 - norm.cdf(1)) / 2
 
 # important object coordinates
 sgr_a = SkyCoord(0, 0, unit="rad", frame="galactic")
