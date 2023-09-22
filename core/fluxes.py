@@ -113,6 +113,9 @@ def astro_flux(
         - e_trans
     """
     flux_base = 1
+    if "model_flux" in flux_shape.shape:
+        flux_base *= flux_shape.norm * aeff_factor * 10 ** flux_shape.model_spline(np.log10(emids))
+
     if "powerlaw" in flux_shape.shape:
         _gamma_astro = flux_shape.gamma
         flux_base *= aeff_factor * power_law(
