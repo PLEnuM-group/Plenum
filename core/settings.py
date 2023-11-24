@@ -115,8 +115,11 @@ GEN2_FACTOR = 7.5
 detector_configurations = {
     "IceCube": (["IceCube"], [1]),
     "IceCube-Gen2": (["IceCube"], [GEN2_FACTOR]),
+    "IceCube+Gen2": (["IceCube", "IceCube"], [1, GEN2_FACTOR]),
     "P-ONE": (["IceCube", "P-ONE"], [1, 1]),
+    "P-ONE-only": (["P-ONE"], [1]),
     "KM3NeT": (["IceCube", "KM3NeT"], [1, 1]),
+    "IC+P1+K3": (["IceCube", "P-ONE", "KM3NeT"], [1, 1, 1]),
     "Plenum-1": (["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"], [2, 1, 1, 1]),
     "Plenum-2": (["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"], [1 + GEN2_FACTOR, 1, 1, 1]),
 }
