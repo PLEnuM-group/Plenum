@@ -27,6 +27,47 @@ except:
     colorsys = None
 
 
+def scaling_estimation(
+    df, current_thresholds, scaler, nmax=20, min_steps=1, stop_here=0.1, stepper=1.5
+):
+    """Estimate the best flux scaling factor to reach the current
+    p-value threshold based on interpolating the recent tests with
+    different scaling factors"""
+
+    # start with two values for the scaling factor
+    if len(df) <= min_steps:
+        scaler_new = scaler / stepper
+        return scaler_new
+
+    # check if we already sampled close enough to the threshold
+    if abs(df.iloc[-1]["log10(p)"] + np.log10(current_thresholds[0])) < stop_here:
+        # when we found one pval close to the threshold,
+        # pick the next threshold
+        _ = current_thresholds.pop(0)
+        if len(current_thresholds) == 0:
+            return -1
+
+    # do the interpolation
+    # pick the first threshold from the list
+    scaler_new = get_scaler(df, current_thresholds[0])
+
+    if scaler_new <= 0 or np.isnan(scaler_new):
+        # in case something went wrong
+        # some random value to get started again
+        print("scaling went wrong:", scaler_new)
+        scaler_new = np.random.uniform(1.5, 3.5) / df.iloc[-1]["SosB"]
+
+    # break the optimization loop once we reached nmax
+    if len(df) == nmax:
+        print(
+            "Optimization failed! Diff is:",
+            df.iloc[-1]["log10(p)"] + np.log10(current_thresholds[0]),
+            "thresh is:",
+            current_thresholds[0],
+        )
+        _ = current_thresholds.pop(0)
+    return scaler_new
+
 def read_effective_area():
     column_names = [
         "logE_nu_min",
