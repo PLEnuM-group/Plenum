@@ -2,6 +2,16 @@ from settings import *
 from resolution import energy_smearing
 from collections import namedtuple
 
+# we base the flux models on named-tuples
+PL_flux = namedtuple("PL_flux", "norm gamma E0 shape")
+PLcut_flux = namedtuple("PLcut_flux", "norm gamma e_cut E0 shape")
+LogP_flux = namedtuple("LogP_flux", "norm alpha beta E0 shape")
+
+flux_collection = {
+    "powerlaw": PL_flux,
+    "powerlaw with cutoff": PLcut_flux,
+    "log-parabola": LogP_flux,
+}
 
 # atmospheric backgound smearing
 def atmo_background(aeff_factor, bckg_vals, energy_resolution=None):

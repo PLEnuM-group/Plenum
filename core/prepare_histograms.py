@@ -65,13 +65,14 @@ for hemi in keys:
 # atmospheric neutrino background
 # Calculation can be found in `atmospheric_background.py`
 # MCEQ
-with open(join(st.BASEPATH, "resources/MCEq_flux.pckl"), "rb") as f:
-    (e_grid, zen), flux_def = pickle.load(f)
+with open(join(st.BASEPATH, "resources/MCEq_daemonflux.pckl"), "rb") as f:
+    (e_grid, zen), bckg_flux = pickle.load(f)
+
 # set up the interpolation function
 sindec_mids_bg = -np.cos(np.deg2rad(zen))
 rgi = RegularGridInterpolator(
     (e_grid, sindec_mids_bg),
-    np.log(flux_def["numu_total"]),
+    np.log(bckg_flux ),
     method=interpolation_method,
 )
 
@@ -103,11 +104,10 @@ for k in det_list:
     )
 
 # check if histos are matching
-print(bg_i["IceCube"].match(aeff_2d["IceCube"], verbose=True))
+#print(bg_i["IceCube"].match(aeff_2d["IceCube"], verbose=True))
 
-with open(join(st.LOCALPATH, "atmospheric_background_MH.pckl"), "wb") as f:
+with open(join(st.LOCALPATH, "atmospheric_background_daemonflux_MH.pckl"), "wb") as f:
     pickle.dump(bg_i, f)
-
 # # Energy resolution function
 # Calculation can be found in `resolution.py`
 #

@@ -28,65 +28,100 @@ def aeff_eval(aeff, sindec_width, e_width, ra_width):
 
 # with two dimensions: sindec, energy
 def aeff_eval_e_sd(aeff, sindec_width, e_width, ra_width=2 * np.pi):
+    """
+    Evaluate the effective area for given sin(declination), energy, and right ascension width.
+
+    Parameters:
+    - aeff (float or numpy.ndarray): Effective area values.
+    - sindec_width (numpy.ndarray): Array of sin(declination) bin widths.
+    - e_width (float or numpy.ndarray): Energy bin width.
+    - ra_width (float or numpy.ndarray, optional): Right ascension bin width.
+      Defaults to 2 * pi if not provided.
+
+    Returns:
+    float or numpy.ndarray: Effective area evaluated for the given parameters.
+
+    """
     ra_width = np.atleast_1d(ra_width)
     return aeff * sindec_width[:, np.newaxis] * e_width * np.sum(ra_width)
 
-
 def calc_aeff_factor(aeff, ewidth, livetime, **config):
-    """Calculate the effective area multiplied with the livetime and the correct bin widths
-    for the flux integration to get the expected number of events.
-
-    -- WIP --
+    """
+    Calculate the factor for effective area multiplied by livetime and appropriate bin widths
+    for flux integration to obtain the expected number of events.
 
     Parameters:
     -----------
-    aeff:
+    aeff : numpy.ndarray
+        Effective area values.
 
-    ewidth:
+    ewidth : float
+        Energy bin width.
 
-    livetime:
-
+    livetime : float
+        Livetime for the observation.
 
     Keyword Parameters:
     -------------------
-    diff_or_ps: default 'ps'
+    diff_or_ps : str, default='ps'
+        Determines whether to perform a point source ('ps') or diffuse ('diff') calculation.
 
-    dec: default 0
+    dec : float, default=0
+        Declination angle in degrees.
 
-    sindec_mids: no default given
+    sindec_mids : numpy.ndarray
+        Array of sin(declination) midpoints for point source calculation.
 
-    sindec_width: no default given
+    sindec_width : numpy.ndarray
+        Array of sin(declination) bin widths for diffuse calculation.
 
-    dpsi_max: default 0
+    dpsi_max : float, default=0
+        Maximum angular distance for point source calculation.
 
-    grid_2d: default 1
+    grid_2d : int, default=1
+        Grid dimensionality for point source calculation (2D grid for point source, 1 for other calculations).
+
+    Returns:
+    -------
+    numpy.ndarray
+        The factor for effective area multiplied by livetime and bin widths.
+
+    Notes:
+    ------
+    - For 'ps' (point source) calculation, the factor is determined based on declination, sindec midpoints,
+      maximum angular distance, and the specified grid dimensionality.
+    - For 'diff' (diffuse) calculation, the factor is determined using sindec bin widths.
+    - Ensure that 'diff_or_ps' is set to either 'diff' or 'ps'.
     """
     diff_or_ps = config.pop("diff_or_ps", "ps")
-    # choose diff or ps calculation
+
     if diff_or_ps == "ps":
         dec = config.pop("dec", 0)
         sindec_mids = config.pop("sindec_mids")
-        dpsi_max = config.pop("dpsi_max", 0)  ## default value will evaluate PS flux
-        grid_2d = config.pop(
-            "grid_2d", 1
-        )  ## 2D grid for PS, or unity for other calculations
+        dpsi_max = config.pop("dpsi_max", 0)
+        grid_2d = config.pop("grid_2d", 1)
 
-        # get the right aeff slice that matches the chosen declination
+        # Get the appropriate aeff slice based on the chosen declination
         aeff_factor = (
             grid_2d
             * array_source_interp(dec, aeff, sindec_mids, axis=1)
             * livetime
             * ewidth
         )
+
         if dpsi_max > 0:
-            # solid angle integration for background aeff factor
-            aeff_factor *= np.deg2rad(dpsi_max) ** 2 * np.pi  # solid angle approx.
+            # Solid angle integration for background aeff factor
+            aeff_factor *= np.deg2rad(dpsi_max) ** 2 * np.pi  # Solid angle approximation
+
     elif diff_or_ps == "diff":
         sindec_width = config.pop("sindec_width")
         aeff_factor = aeff_eval_e_sd(aeff, sindec_width, ewidth) * livetime
+
     else:
-        print(diff_or_ps, "must be 'diff' or 'ps'")
+        raise ValueError(f"Invalid value for 'diff_or_ps': {diff_or_ps}. Must be 'diff' or 'ps'.")
+
     return aeff_factor
+
 
 
 def setup_aeff_grid(

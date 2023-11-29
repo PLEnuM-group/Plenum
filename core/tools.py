@@ -34,7 +34,15 @@ def scaling_estimation(
     p-value threshold based on interpolating the recent tests with
     different scaling factors"""
 
-    # start with two values for the scaling factor
+    # First, check that the last pval we put into the df is reasonable
+    # if it's nan, the scaling factor was too large
+    if np.isnan(df.iloc[-1]["log10(p)"]):
+        return scaler / stepper
+    # if it's infinite, the scaling factor was too small   
+    if not np.isfinite(df.iloc[-1]["log10(p)"]):
+        return scaler * stepper
+    
+    # start with sampling min_steps values to estimate the scaling factor
     if len(df) <= min_steps:
         scaler_new = scaler / stepper
         return scaler_new
@@ -121,55 +129,16 @@ def get_scaler(x, thresh, key_x="log10(p)", key_y="scaler"):
     Originally, this was used to calculate the threshold for discovery by interpolation.
     That's why it looks this complicated.
     """
+    # only use finite values
+    mask = np.isfinite(x[key_x])
+    if np.sum(mask) > 10: raise ValueError(f"Too many non-finite values: {x[key_x]}")
+
     return np.power(
         10,
-        np.poly1d(np.polyfit(np.log10(x[key_x]), np.log10(x[key_y]), 1))(
+        np.poly1d(np.polyfit(np.log10(x.loc[mask, key_x]), np.log10(x.loc[mask, key_y]), 1))(
             np.log10(-np.log10(thresh))
         ),
     )
-
-
-def poisson_llh(mu_i, k_i):
-    """Calculate the -2 log(Poisson LLH).
-
-    L(data k | model mu)  = prod_{i,j} mu_ij ** k_ij / k_ij! * exp(-mu_ij)
-
-    For numerical stability, we directly evaluate the log of the poisson probability
-    (see https://en.wikipedia.org/wiki/Stirling%27s_approximation for approximation of the faculty function).
-
-    Since we are using Asimov data that can have floating point values, we need to implement the function
-    instead of using scipy.stats.poisson.logpmf. (It fails for floats in k_i!!)
-
-    -2 log (L) = -2 [k_i log(mu_i) - mu_i - 0.5 log(2 pi k_i) + k_i - k_i log(k_i)]
-
-    We treat some special cases that may cause problems in log:
-
-    * mu -> 0, k>0     --> P -> 0
-    * k -> 0, mu>0     --> P -> exp(-mu)
-    * k -> 0, mu -> 0  --> P -> 1
-
-    """
-    log_LLH = np.zeros_like(mu_i)
-    # k == 0, mu > 0:
-    _mask = (k_i == 0) & (mu_i > 0)
-    log_LLH[_mask] = -mu_i[_mask]
-    # k == 0, mu == 0:
-    _mask = (k_i == 0) & (mu_i == 0)
-    log_LLH[_mask] = 0
-    # k > 0, mu==0: should not happen! we'll assign a very negative value
-    _mask = (k_i > 0) & (mu_i == 0)
-    log_LLH[_mask] = -1e16
-    # k > 0, mu > 0
-    _mask = (k_i > 0) & (mu_i > 0)
-    log_LLH[_mask] = (
-        k_i[_mask] * np.log(mu_i[_mask])
-        - mu_i[_mask]
-        - 0.5 * np.log(2 * np.pi * k_i[_mask])
-        + k_i[_mask]
-        - k_i[_mask] * np.log(k_i[_mask])
-    )
-
-    return -2 * np.sum(log_LLH)
 
 
 def array_source_interp(dec, array, sindec_mids, axis=0):
