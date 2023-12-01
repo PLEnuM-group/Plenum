@@ -26,7 +26,8 @@ interpolation_method = "linear"  # for all interpolators
 
 E_MIN = 2  # 100 GeV
 E_MAX = 9  # 10⁹ GeV = 1 EeV
-LIVETIME = 3186 * 24 * 3600  # new ngc paper
+LIVETIME_DAYS = 3186
+LIVETIME = LIVETIME_DAYS * 24 * 3600  # new ngc paper
 # LIVETIME = 10 * 360 * 24 * 3600  # 360 days of data taking per year in seconds
 E_NORM = 1e5  # normalization energy of power law (E/E_NORM)^gamma
 # --> 100 TeV
