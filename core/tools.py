@@ -36,11 +36,11 @@ def scaling_estimation(
 
     # First, check that the last pval we put into the df is reasonable
     # if it's nan, the scaling factor was too large
-    if np.isnan(df.iloc[-1]["log10(p)"]):
-        return scaler / stepper
+    if np.isnan(df.iloc[-1]["log10(p)"]) or (df.iloc[-1]["pval"]>0.99):
+        return scaler * stepper * 0.9
     # if it's infinite, the scaling factor was too small   
     if not np.isfinite(df.iloc[-1]["log10(p)"]):
-        return scaler * stepper
+        return scaler / stepper
     
     # start with sampling min_steps values to estimate the scaling factor
     if len(df) <= min_steps:
@@ -130,8 +130,8 @@ def get_scaler(x, thresh, key_x="log10(p)", key_y="scaler"):
     That's why it looks this complicated.
     """
     # only use finite values
-    mask = np.isfinite(x[key_x])
-    if np.sum(mask) > 10: raise ValueError(f"Too many non-finite values: {x[key_x]}")
+    mask = np.isfinite(x[key_x]) & (x[key_x]>0)
+    if np.sum(~mask) > 10: raise ValueError(f"Too many non-finite values: {x[key_x]}")
 
     return np.power(
         10,
