@@ -11,7 +11,6 @@ tmp_path = str(Path(__file__).parent.resolve())
 BASEPATH = "/".join(tmp_path.split("/")[:-1])
 
 
-
 def poisson_llh(mu_i, k_i):
     """
     Calculate the -2 log(Poisson Log-Likelihood) for given model parameters.
@@ -64,6 +63,7 @@ def poisson_llh(mu_i, k_i):
 
     return -2 * np.sum(log_LLH)
 
+
 # Set up LLH function
 # $ \mathcal{L}({\rm data}~k~ |~{\rm hypothesis}~\mu)
 #     = \prod_{{\rm bin\,}ij}^{N_{\rm bins}} \frac{\mu_{ij}^{k_{ij}}}{k_{ij}!}\cdot
@@ -75,6 +75,7 @@ def poisson_llh(mu_i, k_i):
 # Signal hypothesis $H_1(\mu = \{N_B, N_S, \gamma\})$: atmospheric neutrino flux + astrophysical neutrino flux
 
 # Idea: data ($k$) are the perfect representation of our expectation; the hypothesis ($\mu$) is the model with the free parameters we'd like to know
+
 
 def ps_llh_single(
     x,
@@ -253,7 +254,7 @@ def setup_multi_llh(
             axis=1,
         )
         # Determine the energy resolution for the current dataset
-        current_eres = eres[ident] if isinstance(all_eres, dict) else eres
+        current_eres = eres[ident] if isinstance(eres, dict) else eres
 
         # Calculate asimov data for atmospheric background
         k_b = atmo_background(
