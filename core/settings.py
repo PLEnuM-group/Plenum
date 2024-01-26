@@ -63,6 +63,7 @@ psi2_mids = get_mids(psi2_bins)
 # inferred binning/bin mids
 logE_mids = get_mids(logE_bins)
 ebins = np.power(10, logE_bins)
+#emids = np.power(10, logE_mids)
 emids = get_mids(ebins)
 ewidth = np.diff(ebins)
 

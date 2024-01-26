@@ -13,7 +13,7 @@ from settings import (
     poles,
     ra_width,
     interpolation_method,
-    GEN2_FACTOR
+    GEN2_FACTOR,
 )
 import settings as st
 from tools import get_mids, array_source_interp, read_effective_area
@@ -44,6 +44,7 @@ def aeff_eval_e_sd(aeff, sindec_width, e_width, ra_width=2 * np.pi):
     """
     ra_width = np.atleast_1d(ra_width)
     return aeff * sindec_width[:, np.newaxis] * e_width * np.sum(ra_width)
+
 
 def calc_aeff_factor(aeff, ewidth, livetime, **config):
     """
@@ -111,17 +112,20 @@ def calc_aeff_factor(aeff, ewidth, livetime, **config):
 
         if dpsi_max > 0:
             # Solid angle integration for background aeff factor
-            aeff_factor *= np.deg2rad(dpsi_max) ** 2 * np.pi  # Solid angle approximation
+            aeff_factor *= (
+                np.deg2rad(dpsi_max) ** 2 * np.pi
+            )  # Solid angle approximation
 
     elif diff_or_ps == "diff":
         sindec_width = config.pop("sindec_width")
         aeff_factor = aeff_eval_e_sd(aeff, sindec_width, ewidth) * livetime
 
     else:
-        raise ValueError(f"Invalid value for 'diff_or_ps': {diff_or_ps}. Must be 'diff' or 'ps'.")
+        raise ValueError(
+            f"Invalid value for 'diff_or_ps': {diff_or_ps}. Must be 'diff' or 'ps'."
+        )
 
     return aeff_factor
-
 
 
 def setup_aeff_grid(
@@ -259,6 +263,7 @@ def padded_interpolation(array, *bins, **rgi_kwargs):
         padded_mids.append(np.concatenate([[bins[i][0]], m, [bins[i][-1]]]))
 
     # return the rgi of the array padded with its edge values
+    # mode="constant", constant_values=0
     return RegularGridInterpolator(
         padded_mids, np.pad(array, 1, mode="edge"), **rgi_kwargs
     )
@@ -282,7 +287,7 @@ if __name__ == "__main__":
 
     log_ebins = np.unique([public_data_aeff.logE_nu_min, public_data_aeff.logE_nu_max])
     ebins = np.power(10, log_ebins)
-    emids = get_mids(ebins)
+    emids = np.power(10, get_mids(log_ebins))
     ewidth = np.diff(ebins)
 
     # re-shape into 2D array with (A(E) x A(delta))
@@ -300,7 +305,7 @@ if __name__ == "__main__":
     y1 = yy[~array.mask]
     newarr = array[~array.mask]
 
-    GD1 = griddata((x1, y1), newarr.ravel(), (xx, yy), method="cubic")
+    GD1 = griddata((x1, y1), newarr.ravel(), (xx, yy), method="linear")
     GD1[np.isnan(GD1)] = -7
 
     interp_aeff = 10**GD1
@@ -308,7 +313,7 @@ if __name__ == "__main__":
     smth_aeff_spl = RectBivariateSpline(x, y, GD1.T, s=20)
 
     aeff_icecube_full = 10 ** smth_aeff_spl(x, y).T
-    aeff_icecube_full[aeff_icecube_full<1E-4] = 0
+    aeff_icecube_full[aeff_icecube_full < 1e-4] = 0
 
     # some event numbers for checking
     aeff_factor = (
@@ -329,7 +334,7 @@ if __name__ == "__main__":
     # cut at delta > -5deg
     min_idx = np.searchsorted(st.sindec_mids, np.sin(np.deg2rad(-5)))
     print(
-        f"Below {np.rad2deg(np.arcsin(sindec_bins[min_idx])):1.2f} deg, A_eff is set to 0"
+        f"Below {np.rad2deg(np.arcsin(st.sindec_bins[min_idx])):1.2f} deg, A_eff is set to 0"
     )
     aeff_2d["icecube"] = np.copy(aeff_2d["icecube_full"])
     aeff_2d["icecube"][:, :min_idx] = 0
@@ -354,7 +359,7 @@ if __name__ == "__main__":
         aeff_i["Plenum-1"] += aeff_i[k]
 
     ## GEN-2 will have ~7.5x effective area ==> 5times better discovery potential
-    aeff_i["Gen-2"] = aeff_i["IceCube"] *GEN2_FACTOR
+    aeff_i["Gen-2"] = aeff_i["IceCube"] * GEN2_FACTOR
     ## in plenum-2, IC is replaced by Gen-2
     aeff_i["Plenum-2"] = aeff_i["Plenum-1"] - aeff_i["IceCube"] + aeff_i["Gen-2"]
 
@@ -386,7 +391,7 @@ if __name__ == "__main__":
         aeff_i_full["Plenum-1"] += aeff_i_full[k]
 
     # GEN-2 will have ~7.5x effective area ==> 5times better discovery potential
-    aeff_i_full["Gen-2"] = aeff_i_full["IceCube"] *GEN2_FACTOR
+    aeff_i_full["Gen-2"] = aeff_i_full["IceCube"] * GEN2_FACTOR
     aeff_i_full["Plenum-2"] = (
         aeff_i_full["Plenum-1"] - aeff_i_full["IceCube"] + aeff_i_full["Gen-2"]
     )
