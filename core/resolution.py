@@ -36,7 +36,7 @@ def energy_smearing(ematrix, ev):
         return (ematrix @ ev.T).T
 
 
-def get_baseline_eres(renew_calc=False):
+def get_baseline_eres(renew_calc=False, return_predictions=False):
     """Make a smooth energy resolution from the smearing matrix using gaussian processes in 1D and 2D."""
     filename = join(st.LOCALPATH, "GP_Eres_mephistograms.pckl")
 
@@ -120,6 +120,7 @@ def get_baseline_eres(renew_calc=False):
 
         # second step: 2D prediction based on the smoothed 1D predictions
         GP_mephistograms = {}
+        predictions = {}
         for decmid, selection in e_reso_predictions.groupby("decmid"):
             input_eres = np.sqrt(np.stack(selection.P_ereco)).flatten()
             input_e, input_eR = np.meshgrid(selection.emid, e_vals, indexing="ij")
@@ -133,7 +134,7 @@ def get_baseline_eres(renew_calc=False):
                 n_restarts_optimizer=7,
             )
             gp.fit(input_X, input_eres)
-
+            predictions[f"dec-{decmid}"] = gp
             # Input space
             x1x2 = np.array(list(product(st.logE_mids, st.logE_reco_mids)))
             eres_pred, MSE = gp.predict(x1x2, return_std=True)
@@ -152,10 +153,13 @@ def get_baseline_eres(renew_calc=False):
         with open(filename, "wb") as f:
             pickle.dump(GP_mephistograms, f)
 
-    return GP_mephistograms
+    if return_predictions:
+        return GP_mephistograms, predictions
+    else:
+        return GP_mephistograms
 
 
-def get_baseline_energy_res_kde(step_size=0.1, renew_calc=False):
+def get_baseline_energy_res_kde(step_size=0.1, renew_calc=False, return_kde=False):
     """OUTDATED"""
 
     filename = join(st.LOCALPATH, f"energy_smearing_2D_step-{step_size}_KDE.pckl")
@@ -192,6 +196,7 @@ def get_baseline_energy_res_kde(step_size=0.1, renew_calc=False):
         # horizontal: -10 -> 10 deg
         # up-going (=North): 10 -> 90 deg
         all_grids = {}
+        all_kdes={}
 
         # loop over declination bins
         for dd in np.unique(dec_sm_mids):
@@ -201,6 +206,7 @@ def get_baseline_energy_res_kde(step_size=0.1, renew_calc=False):
                 (log_sm_emids[dec_mask], log_sm_ereco_mids[dec_mask]),
                 weights=fractional_event_counts[dec_mask],
             )
+            all_kdes[f"dec-{dd}"] = e_ereco_kdes
             all_grids[f"dec-{dd}"] = e_ereco_kdes([ee.flatten(), rr.flatten()]).reshape(
                 len(logE_reco_mids), len(logE_mids)
             )
@@ -209,7 +215,10 @@ def get_baseline_energy_res_kde(step_size=0.1, renew_calc=False):
         with open(filename, "wb") as f:
             pickle.dump((all_grids, logE_bins, logE_reco_bins), f)
 
-    return all_grids, logE_bins, logE_reco_bins
+    if return_kde:
+        return all_grids, logE_bins, logE_reco_bins, all_kdes
+    else:
+        return all_grids, logE_bins, logE_reco_bins
 
 
 def get_energy_psf_grid(logE_bins, delta_psi_max=2, bins_per_psi2=25, renew_calc=False):
