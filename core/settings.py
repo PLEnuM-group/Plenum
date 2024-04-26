@@ -11,6 +11,7 @@ from tools import get_mids
 from scipy.stats import norm
 
 import mkl
+
 mkl.set_num_threads(1)
 
 # get the baseline path of this project
@@ -53,7 +54,7 @@ logE_reco_bins = np.arange(2, 9.0, step=step)
 sindec_bins = np.linspace(-1, 1, num=101)
 ra_bins = np.linspace(0, np.pi * 2, num=100)
 
-delta_psi_max = 3 # 3 for soft spectra, 1 for hard spectra
+delta_psi_max = 3  # 3 for soft spectra, 1 for hard spectra
 bins_per_psi2 = 25
 psi2_bins = np.linspace(
     0, delta_psi_max**2, num=int(delta_psi_max**2 * bins_per_psi2) + 1
@@ -63,7 +64,7 @@ psi2_mids = get_mids(psi2_bins)
 # inferred binning/bin mids
 logE_mids = get_mids(logE_bins)
 ebins = np.power(10, logE_bins)
-#emids = np.power(10, logE_mids)
+# emids = np.power(10, logE_mids)
 emids = get_mids(ebins)
 ewidth = np.diff(ebins)
 
@@ -110,7 +111,22 @@ many_colors.extend(
     sns.cubehelix_palette(start=2.4, rot=0, n_colors=3, light=0.7, dark=0.3, hue=1.5)
 )
 many_colors = np.array(many_colors, dtype=object)
+ecap_cmap = sns.cubehelix_palette(
+    start=(149 - 256) / 256 * 3 + 1,
+    rot=0,
+    light=1,
+    dark=0.2,
+    hue=1,
+    as_cmap=True,
+    reverse=True,
+)
+from matplotlib.colors import ListedColormap
 
+ecap_listed_cmap = ListedColormap(
+    sns.cubehelix_palette(
+        start=(149 - 256) / 256 * 3 + 1, rot=0, light=1, dark=0.1, hue=1.2, n_colors=12
+    )
+)
 # define location of experiments
 # and plot settings
 GEN2_FACTOR = 7.5
@@ -123,7 +139,10 @@ detector_configurations = {
     "KM3NeT": (["IceCube", "KM3NeT"], [1, 1]),
     "IC+P1+K3": (["IceCube", "P-ONE", "KM3NeT"], [1, 1, 1]),
     "Plenum-1": (["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"], [2, 1, 1, 1]),
-    "Plenum-2": (["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"], [1 + GEN2_FACTOR, 1, 1, 1]),
+    "Plenum-2": (
+        ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"],
+        [1 + GEN2_FACTOR, 1, 1, 1],
+    ),
 }
 
 poles = {
@@ -143,9 +162,9 @@ poles = {
         "label": "IceCube x 7.5",
         "marker": "d",
     },
-    "P-ONE": {
-        "lon": -123.3656 * u.deg,
-        "lat": 48.4284 * u.deg,
+    "P-ONE": {  # cascadia basin node location
+        "lon": -127.729272 * u.deg,
+        "lat": 47.742345 * u.deg,
         "color": colors[2],
         "ls": "--",
         "label": "at P-ONE location",

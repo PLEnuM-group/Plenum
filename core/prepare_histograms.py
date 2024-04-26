@@ -72,7 +72,7 @@ with open(join(st.BASEPATH, "resources/MCEq_daemonflux.pckl"), "rb") as f:
 sindec_mids_bg = -np.cos(np.deg2rad(zen))
 rgi = RegularGridInterpolator(
     (e_grid, sindec_mids_bg),
-    np.log(bckg_flux ),
+    np.log(bckg_flux),
     method=interpolation_method,
 )
 
@@ -87,6 +87,7 @@ grid2d, eq_coords = setup_aeff_grid(
 # loop over detectors and rotate the local background flux to equatorial coordinates
 # i.e. calculate the average bg flux per day in equatorial sin(dec)
 bg_i = {}
+bg_hist_i = {}
 det_list = ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"]
 for k in det_list:
     bg_i[k] = Mephistogram(
@@ -102,12 +103,18 @@ for k in det_list:
         ("sin(dec)", "log(E/GeV)"),
         make_hist=False,
     )
+    bg_hist_i[k] = bg_i[k].histo
 
 # check if histos are matching
-#print(bg_i["IceCube"].match(aeff_2d["IceCube"], verbose=True))
+# print(bg_i["IceCube"].match(aeff_2d["IceCube"], verbose=True))
 
 with open(join(st.LOCALPATH, "atmospheric_background_daemonflux_MH.pckl"), "wb") as f:
     pickle.dump(bg_i, f)
+
+with open(
+    join(st.LOCALPATH, "atmospheric_background_daemonflux_multi-det.pckl"), "wb"
+) as f:
+    pickle.dump((st.sindec_bins, st.logE_bins, bg_hist_i), f)
 # # Energy resolution function
 # Calculation can be found in `resolution.py`
 #
@@ -134,7 +141,9 @@ if False:
     # # Psi²
     # Calculation can be found in `resolution.py`
     # angular resolution
-    with open(join(st.LOCALPATH, f"Psi2-{st.delta_psi_max}_res_mephistograms.pckl"), "rb") as f:
+    with open(
+        join(st.LOCALPATH, f"Psi2-{st.delta_psi_max}_res_mephistograms.pckl"), "rb"
+    ) as f:
         all_psi = pickle.load(f)
     e_psi2_grid = all_psi["dec-0.0"]
     e_psi2_grid.normalize()
