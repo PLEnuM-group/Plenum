@@ -11,8 +11,13 @@ from settings import *
 from tqdm import tqdm
 
 print("Calculate detection efficiencies")
-with open(join(LOCALPATH, "effective_area_MH_full.pckl"), "rb") as f:
-    aeff_2d = pickle.load(f)
+# both files have the same information, but the 'MH' file contains Mephistograms instead of arrays
+if False:
+    with open(join(LOCALPATH, "effective_area_MH_full.pckl"), "rb") as f:
+        aeff_2d = pickle.load(f)
+else:
+    with open(join(BASEPATH, f"resources/effective_area_full.pckl"), "rb") as f:
+        aeff_2d = pickle.load(f)
 
 ### calculate raw neutrino rate ~ detection efficiency
 # Res = integral dE ( A_eff * (E/GeV)**(-gamma) ) / delta sindec

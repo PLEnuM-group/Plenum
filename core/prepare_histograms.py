@@ -45,6 +45,7 @@ for hemi in keys:
     print(len(st.sindec_mids), "declination bins")
     # evaluate the interpolation and make mephistograms
     aeff_2d = {}
+    aeff_2d_hist = {}
     if need_to_update_binning:
         ss, ll = np.meshgrid(st.sindec_mids, st.logE_mids)
     for k in aeff_2d_base:
@@ -58,9 +59,13 @@ for hemi in keys:
             ("sin(dec)", "log(E/GeV)"),
             make_hist=False,
         )
+        aeff_2d_hist[k] = aeff_tmp.T if need_to_update_binning else aeff_2d_base[k].T
 
     with open(join(st.LOCALPATH, f"effective_area_MH_{hemi}.pckl"), "wb") as f:
         pickle.dump(aeff_2d, f)
+
+    with open(join(st.BASEPATH, f"resources/effective_area_{hemi}.pckl"), "wb") as f:
+        pickle.dump(aeff_2d_hist, f)
 
 # atmospheric neutrino background
 # Calculation can be found in `atmospheric_background.py`
