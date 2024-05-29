@@ -121,10 +121,14 @@ def astro_flux(
         - depletion
         - growth_rate
         - e_trans
+
+    ° model flux
+        - norm
+        - model_spline (formatted as flux = 10 ** model_spline(log10_E))
     """
     flux_base = 1
     if "model_flux" in flux_shape.shape:
-        flux_base *= flux_shape.norm * aeff_factor * 10 ** flux_shape.model_spline(np.log10(emids))
+        flux_base *= flux_shape.norm * phi_scaling * aeff_factor * 10 ** flux_shape.model_spline(np.log10(emids))
 
     if "powerlaw" in flux_shape.shape:
         _gamma_astro = flux_shape.gamma

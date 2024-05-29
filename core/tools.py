@@ -573,16 +573,18 @@ def add_plane(ax, coords="ra", color="black", label="Galactic center/plane", **k
         cra, cdec = cra.deg, cdec.deg
     else:
         cra, cdec = cra.rad, cdec.rad
-
+    ls = kwargs.pop("ls", "dotted")
+    lw = kwargs.pop("lw", 3)
+    alpha = kwargs.pop("alpha", 0.8)
     ax.plot(
         cra,
         cdec,
         marker="o",
         ms=15,
         c=color,
-        linestyle="dotted",
+        linestyle=ls,
         label=label,
-        alpha=kwargs.pop("alpha", 0.8),
+        alpha=alpha,
         **kwargs
     )
 
@@ -602,7 +604,7 @@ def add_plane(ax, coords="ra", color="black", label="Galactic center/plane", **k
     else:
         cra, cdec = cra.rad, cdec.rad
     ax.plot(
-        cra, cdec, marker="None", c=color, linestyle="dotted", linewidth=3, **kwargs
+        cra, cdec, marker="None", c=color, alpha=alpha, linestyle=ls, linewidth=lw, **kwargs
     )
     return
 

@@ -16,9 +16,10 @@ with open(join(LOCALPATH, "effective_area_MH_full.pckl"), "rb") as f:
 
 ### calculate raw neutrino rate ~ detection efficiency
 # Res = integral dE ( A_eff * (E/GeV)**(-gamma) ) / delta sindec
+gamma_range = np.round(np.arange(1.5, 3.6, step=0.1), decimals=1)
 
 tcks = dict()
-for ii, gamma in enumerate(np.round(np.arange(1.4, 3.6, step=0.1), decimals=1)):
+for ii, gamma in enumerate(gamma_range):
     tcks[gamma] = dict()
     for det in [
         "Plenum-1",
@@ -58,7 +59,7 @@ rel_events_ra_dec = {}
 
 # # old code !! needs to be updated with available tools # #
 
-for ii, gamma in tqdm(enumerate(np.round(np.arange(1.4, 3.6, step=0.1), decimals=1))):
+for ii, gamma in tqdm(enumerate(gamma_range)):
     inst_rel_events_ra_dec[gamma] = {}
     rel_events_ra_dec[gamma] = {}
 

@@ -45,7 +45,7 @@ PHI_NGC = 5e-14  # @ 1 TeV / GeV cm² s
 E0_NGC = 1e3
 # cutoff parameters
 Gamma_cut = 2.0
-logE_cut = 3.5  # log10 (Ecut / GeV)
+logE_cut = 3.4  # log10 (Ecut / GeV)
 
 # baseline binning
 step = 0.05
