@@ -1,17 +1,31 @@
 from settings import *
 from resolution import energy_smearing
 from collections import namedtuple
+from pandas import read_csv, read_table
+from scipy.interpolate import InterpolatedUnivariateSpline
 
 # we base the flux models on named-tuples
 PL_flux = namedtuple("PL_flux", "norm gamma E0 shape")
 PLcut_flux = namedtuple("PLcut_flux", "norm gamma e_cut E0 shape")
 LogP_flux = namedtuple("LogP_flux", "norm alpha beta E0 shape")
-
+model_flux = namedtuple("model_flux", "norm model_spline shape")
+DPL_flux = namedtuple("DPL_flux", "norm gamma_1 gamma_2 E_break E0 shape")
+Sig_flux = namedtuple("Sig_flux", "norm gamma depletion growth transition E0 shape")
+DipBump_flux = namedtuple(
+    "DipBump_flux", "norm gamma amplitude mean_energy width E0 shape"
+)
+# use the right keywords here for the shape
+# such that def astro_flux can identify them
 flux_collection = {
     "powerlaw": PL_flux,
     "powerlaw with cutoff": PLcut_flux,
     "log-parabola": LogP_flux,
+    "model_flux": model_flux,
+    "double powerlaw": DPL_flux,
+    "sigmoid": Sig_flux,
+    "bump": DipBump_flux,
 }
+
 
 # atmospheric backgound smearing
 def atmo_background(aeff_factor, bckg_vals, energy_resolution=None):
@@ -128,7 +142,12 @@ def astro_flux(
     """
     flux_base = 1
     if "model_flux" in flux_shape.shape:
-        flux_base *= flux_shape.norm * phi_scaling * aeff_factor * 10 ** flux_shape.model_spline(np.log10(emids))
+        flux_base *= (
+            flux_shape.norm
+            * phi_scaling
+            * aeff_factor
+            * 10 ** flux_shape.model_spline(np.log10(emids))
+        )
 
     if "powerlaw" in flux_shape.shape:
         _gamma_astro = flux_shape.gamma
@@ -185,14 +204,51 @@ def astro_flux(
         return flux_base
 
 
-### some generic shape parameters used in the diffuse-style analysis
-PL_flux = namedtuple("PL_flux", "norm gamma E0 shape")
-PLcut_flux = namedtuple("PLcut_flux", "norm gamma e_cut E0 shape")
-LogP_flux = namedtuple("LogP_flux", "norm alpha beta E0 shape")
-DPL_flux = namedtuple("DPL_flux", "norm gamma_1 gamma_2 E_break E0 shape")
-Sig_flux = namedtuple("Sig_flux", "norm gamma depletion growth transition E0 shape")
-DipBump_flux = namedtuple(
-    "DipBump_flux", "norm gamma amplitude mean_energy width E0 shape"
+# model fluxes
+# Model fit Inoue et al 2023 ICRC
+# https://pos.sissa.it/444/1161/pdf
+inoue_data = read_csv(
+    "/home/hpc/capn/capn102h/repos/Plenum/local/neutrino_models/inoue_icrc2023.txt",
+    skipinitialspace=True,
+)
+inoue_data["E_GeV"] = 10 ** (inoue_data["logE_eV"] - 9)
+inoue_data["flux"] = (
+    (10 ** inoue_data["E2_flux_erg"])
+    * 1e3  # it should be erg_to_GeV =~ 624, but it seems like it's just 1E3 in the plot ... (?!)
+    / (inoue_data["E_GeV"] ** 2)
+)
+
+inoue_src_flux = model_flux(
+    1,
+    InterpolatedUnivariateSpline(
+        np.log10(inoue_data["E_GeV"]), np.log10(inoue_data["flux"]), k=1
+    ),
+    "model_flux",
+)
+# see https://doi.org/10.3847/1538-4357/ac1c77
+disk_corona_flux = read_table(
+    "/home/hpc/capn/capn102h/repos/Plenum/local/ngc_1068_flux_template_Lx_43.txt",
+    sep="\t",
+    skiprows=1,
+    names=["energy", "raw_flux"],
+)
+disk_corona_flux["flux"] = (
+    disk_corona_flux["raw_flux"] / 13**2 * 1e9 / 3
+)  # scale from 1 Mpc to 13 Mpc distance; per eV -> per GeV; all-flavor to single flavor
+
+disk_corona_flux["energy_GeV"] = disk_corona_flux["energy"] / 1e9
+disk_corona_flux["E2_flux"] = (
+    disk_corona_flux["flux"] * disk_corona_flux["energy_GeV"] ** 2
+)
+mask = disk_corona_flux["flux"] > 0
+kheirandish_src_flux = model_flux(
+    1,
+    InterpolatedUnivariateSpline(
+        np.log10(disk_corona_flux["energy_GeV"][mask]),
+        np.log10(disk_corona_flux["flux"][mask]),
+        k=1,
+    ),
+    "model_flux",
 )
 
 # parameters from https://arxiv.org/abs/1908.09551

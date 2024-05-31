@@ -88,6 +88,7 @@ def ps_llh_single(
     phi_0,
     shape,
     verbose=False,
+    flux_shape=None,
 ):
     """
     Calculate the log-likelihood using Poisson statistics for a single dataset assuming consistent properties.
@@ -106,6 +107,9 @@ def ps_llh_single(
         phi_0 (float): Normalization flux. Default value is PHI_NGC.
         shape (str): Flux shape.
         verbose (bool, optional): Whether to print additional information. Default is False.
+        model_flux (named_tuple, optional): Use a splined model flux instead of an analytic flux descpription.
+            phi_0 and e_0 are not used then. see fluxes.py for definition; model_spline should be formatted as flux = 10 ** model_spline(log10_E).
+            (see fluxes.astro_flux)
 
     Returns:
         float: -2 * Log-likelihood value calculated using Poisson statistics. See 'poisson_llh'.
@@ -123,14 +127,17 @@ def ps_llh_single(
         * x[0]
     )
     # Calculate the signal contribution
+    if not "model_flux" in shape:
+        flux_shape = flux_collection[shape](phi_0, *x[2:], e_0, shape)
+        # else: flux shape is already fixed as model flux with just
+        # the normalization (x[1]) as free parameter
+
     mu_s = astro_flux(
-        aeff_factor_s,
-        10 ** aeff_factor_s.bin_mids[1],
-        energy_resolution,
-        x[1],
-        flux_collection[shape](
-            phi_0, *x[2:], e_0, shape
-        ),  # here we generate a flux tuple with the current parameters
+        aeff_factor=aeff_factor_s,
+        emids=10 ** aeff_factor_s.bin_mids[1],
+        energy_resolution=energy_resolution,
+        phi_scaling=x[1],  # normalization factor
+        flux_shape=flux_shape,  # here we generate a flux tuple with the current parameters
     )
     if verbose:
         # Print additional information if verbose mode is enabled
@@ -155,6 +162,7 @@ def ps_llh_multi(
     shape,
     e_0,
     phi_0,
+    flux_shape=None,
 ):
     """
     Calculate the total log-likelihood across multiple datasets with different properties.
@@ -188,6 +196,7 @@ def ps_llh_multi(
             e_0=e_0,
             phi_0=phi_0,
             shape=shape,
+            flux_shape=flux_shape,
         )
     return llh
 
