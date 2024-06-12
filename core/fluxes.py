@@ -221,7 +221,7 @@ inoue_data["flux"] = (
 inoue_src_flux = model_flux(
     1,
     InterpolatedUnivariateSpline(
-        np.log10(inoue_data["E_GeV"]), np.log10(inoue_data["flux"]), k=1
+        np.log10(inoue_data["E_GeV"]), np.log10(inoue_data["flux"]), k=3
     ),
     "model_flux",
 )
@@ -246,7 +246,7 @@ kheirandish_src_flux = model_flux(
     InterpolatedUnivariateSpline(
         np.log10(disk_corona_flux["energy_GeV"][mask]),
         np.log10(disk_corona_flux["flux"][mask]),
-        k=1,
+        k=3,
     ),
     "model_flux",
 )
