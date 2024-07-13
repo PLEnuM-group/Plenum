@@ -48,9 +48,10 @@ def poisson_llh(mu_i, k_i):
     # k == 0, mu == 0:
     _mask = (k_i == 0) & (mu_i == 0)
     log_LLH[_mask] = 0
-    # k > 0, mu==0: should not happen! we'll assign a very negative value
+    # k > 0, mu==0: should not happen! we'll raise an error
     _mask = (k_i > 0) & (mu_i == 0)
-    log_LLH[_mask] = -1e16
+    if np.count_nonzero(_mask) > 0:
+        raise ValueError("Invalid case of k > 0, mu==0")
     # k > 0, mu > 0
     _mask = (k_i > 0) & (mu_i > 0)
     log_LLH[_mask] = (
@@ -89,7 +90,10 @@ def ps_llh_single(
     shape,
     verbose=False,
     flux_shape=None,
+    signal_parameters=None,  # only needed if multiple signal models are mixed
+    fixed_BG=False,
 ):
+    ## with the new mixture implementation this becomes a bit unwieldy - update TODO
     """
     Calculate the log-likelihood using Poisson statistics for a single dataset assuming consistent properties.
 
@@ -103,13 +107,16 @@ def ps_llh_single(
         bckg_flux (list): Background flux values.
         k_i (array-like): Observation/Asimov data.
         energy_resolution (float): Energy resolution.
-        e_0 (float): Normalization energy. Default value is E0_NGC.
-        phi_0 (float): Normalization flux. Default value is PHI_NGC.
+        e_0 (float): Normalization energy - if multiple models are given, all will have the same e_0
+        phi_0 (float): Normalization flux - if multiple models are given, all will have the same phi_0
         shape (str): Flux shape.
         verbose (bool, optional): Whether to print additional information. Default is False.
-        model_flux (named_tuple, optional): Use a splined model flux instead of an analytic flux descpription.
+        flux_shape (named_tuple, optional): Use a splined model flux instead of an analytic flux descpription.
             phi_0 and e_0 are not used then. see fluxes.py for definition; model_spline should be formatted as flux = 10 ** model_spline(log10_E).
             (see fluxes.astro_flux)
+        signal_parameters: list of number of parameters per signal model
+        fixed_BG (bool): if False, calculate background from aeff_factor_b; if True,
+            assume aeff_factor_b is already the full background.
 
     Returns:
         float: -2 * Log-likelihood value calculated using Poisson statistics. See 'poisson_llh'.
@@ -118,27 +125,62 @@ def ps_llh_single(
         This function assumes that there is only one dataset with consistent properties.
     """
     # Calculate the background contribution
-    mu_b = (
-        atmo_background(
-            aeff_factor=aeff_factor_b,
-            bckg_vals=bckg_flux,
-            energy_resolution=energy_resolution,
+    if fixed_BG:
+        mu_b = aeff_factor_b * x[0]
+    else:
+        mu_b = (
+            atmo_background(
+                aeff_factor=aeff_factor_b,
+                bckg_vals=bckg_flux,
+                energy_resolution=energy_resolution,
+            )
+            * x[0]
         )
-        * x[0]
-    )
     # Calculate the signal contribution
-    if not "model_flux" in shape:
-        flux_shape = flux_collection[shape](phi_0, *x[2:], e_0, shape)
-        # else: flux shape is already fixed as model flux with just
-        # the normalization (x[1]) as free parameter
+    # check if it's a multi-model mixture:
+    if type(shape) == list:
+        all_fluxes = []
+        first_signal_index = 1
+        for ii, shape_i in enumerate(shape):
+            # here we generate a flux tuple with the current parameters
+            if "model_flux" in shape_i:
+                flux_i = flux_collection["model_flux"](
+                    x[first_signal_index], flux_shape.model_spline, shape_i
+                )
+            else:
+                flux_i = flux_collection[shape_i](
+                    phi_0 * x[first_signal_index],
+                    *x[first_signal_index + 1 :],
+                    e_0,
+                    shape_i
+                )
+                # else: flux shape is already fixed as model flux with just
+                # the normalization (x[1]) as free parameter
+            first_signal_index += signal_parameters[ii]
+            all_fluxes.append(flux_i)
 
-    mu_s = astro_flux(
-        aeff_factor=aeff_factor_s,
-        emids=10 ** aeff_factor_s.bin_mids[1],
-        energy_resolution=energy_resolution,
-        phi_scaling=x[1],  # normalization factor
-        flux_shape=flux_shape,  # here we generate a flux tuple with the current parameters
-    )
+        mu_s = astro_flux(
+            aeff_factor=aeff_factor_s,
+            emids=10 ** aeff_factor_s.bin_mids[1],
+            energy_resolution=energy_resolution,
+            phi_scaling=1,  # normalization factor -> now in flux shape normalization to allow for relative scaling
+            flux_shape=all_fluxes,
+        )
+    # else, just do the regular calculation
+    else:
+        if not "model_flux" in shape:
+            # here we generate a flux tuple with the current parameters
+            flux_shape = flux_collection[shape](phi_0, *x[2:], e_0, shape)
+            # else: flux shape is already fixed as model flux with just
+            # the normalization (x[1]) as free parameter
+
+        mu_s = astro_flux(
+            aeff_factor=aeff_factor_s,
+            emids=10 ** aeff_factor_s.bin_mids[1],
+            energy_resolution=energy_resolution,
+            phi_scaling=x[1],  # normalization factor
+            flux_shape=flux_shape,
+        )
     if verbose:
         # Print additional information if verbose mode is enabled
         print(x[0], x[1], *x[2:])
@@ -163,6 +205,7 @@ def ps_llh_multi(
     e_0,
     phi_0,
     flux_shape=None,
+    signal_parameters=None,
 ):
     """
     Calculate the total log-likelihood across multiple datasets with different properties.
@@ -197,6 +240,7 @@ def ps_llh_multi(
             phi_0=phi_0,
             shape=shape,
             flux_shape=flux_shape,
+            signal_parameters=signal_parameters,
         )
     return llh
 
@@ -278,7 +322,7 @@ def setup_multi_llh(
             emids=10 ** aeff_factor_signal.bin_mids[1],
             energy_resolution=current_eres,
             phi_scaling=1,
-            flux_shape=src_flux,  # powerlaw
+            flux_shape=src_flux,
         )
 
         if verbose:

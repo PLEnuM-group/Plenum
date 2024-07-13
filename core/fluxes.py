@@ -141,6 +141,26 @@ def astro_flux(
         - model_spline (formatted as flux = 10 ** model_spline(log10_E))
     """
     flux_base = 1
+    # check if multiple models are requested
+    if type(flux_shape) == list:
+        fluxes = []
+        for ii, flux_i in enumerate(flux_shape):
+            fluxes.append(
+                astro_flux(
+                    aeff_factor,
+                    emids,
+                    energy_resolution,
+                    phi_scaling,
+                    flux_i,
+                )
+            )
+            if ii == 0:
+                total_flux = fluxes[ii]
+            if ii >= 1:
+                total_flux += fluxes[ii]
+
+        return total_flux
+
     if "model_flux" in flux_shape.shape:
         flux_base *= (
             flux_shape.norm
