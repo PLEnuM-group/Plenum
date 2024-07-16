@@ -1,8 +1,10 @@
 from settings import *
+from pickle import load
 from resolution import energy_smearing
 from collections import namedtuple
 from pandas import read_csv, read_table
 from scipy.interpolate import InterpolatedUnivariateSpline
+from aeff_calculations import calc_aeff_factor
 
 # we base the flux models on named-tuples
 PL_flux = namedtuple("PL_flux", "norm gamma E0 shape")
@@ -434,3 +436,60 @@ def plot_spectrum(energy, events, labels, title, f, ax, **kwargs):
     ax.set_xlabel(xlabel)
     f.tight_layout()
     return f, ax
+
+
+# set specific source fluxes for all scripts
+
+
+with open(join(LOCALPATH, "effective_area_MH_upgoing.pckl"), "rb") as f:
+    aeff_2d = load(f)
+# angular resolution
+with open(join(LOCALPATH, f"Psi2-{delta_psi_max}_res_mephistograms.pckl"), "rb") as f:
+    all_psi = load(f)
+e_psi2_grid = all_psi["dec-0.0"]
+e_psi2_grid.normalize()
+
+# ngc1068 source config without dec coordinate
+ngc_src_config = dict(
+    sindec_mids=sindec_mids,
+    livetime=LIVETIME,
+    ewidth=ewidth,
+    dpsi_max=0,
+    grid_2d=e_psi2_grid,
+    dec=ngc1068.dec.rad,
+)
+
+ngc_flux = PL_flux(PHI_NGC, GAMMA_NGC, E0_NGC, "powerlaw")
+tmp_flux = PLcut_flux(PHI_NGC, Gamma_cut, logE_cut, E0_NGC, "powerlaw with cutoff")
+aeff_factor_signal = calc_aeff_factor(aeff_2d["IceCube"], **ngc_src_config)
+
+astro_ev_sum_pl = np.sum(
+    astro_flux(
+        aeff_factor_signal,
+        10 ** aeff_factor_signal.bin_mids[1],
+        None,
+        1,
+        ngc_flux,
+    )
+)
+# cutoff
+astro_ev_sum_cut = np.sum(
+    astro_flux(
+        aeff_factor_signal,
+        10 ** aeff_factor_signal.bin_mids[1],
+        None,
+        1,
+        tmp_flux,
+    )
+)
+# calculate the flux normalization so that event numbers match für IceCube
+flux_scaling_cut = astro_ev_sum_pl / astro_ev_sum_cut
+
+# define the correctly normalized PL+cut flux for NGC 1068
+ngc_cut_flux = PLcut_flux(
+    PHI_NGC * flux_scaling_cut,
+    Gamma_cut,
+    logE_cut,
+    E0_NGC,
+    "powerlaw with cutoff",
+)
