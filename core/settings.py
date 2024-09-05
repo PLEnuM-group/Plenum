@@ -183,7 +183,7 @@ poles = {
     "Baikal-GVD": {
         "lon": 108.1650 * u.deg,
         "lat": 53.5587 * u.deg,
-        "color": colors[1],
+        "color": "0.65",  # colors[0],
         "ls": "--",
         "label": "at GVD location",
         "marker": "d",

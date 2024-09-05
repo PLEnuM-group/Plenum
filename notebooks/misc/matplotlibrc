@@ -240,7 +240,7 @@ font.size            : 14
                               # LaTeX \usepackage command, please inquire at the
                               # matplotlib mailing list
 text.usetex         : True
-text.latex.preview  : False
+# text.latex.preview  : False
 
 #text.latex.unicode : False # use "ucs" and "inputenc" LaTeX packages for handling
                             # unicode strings.
