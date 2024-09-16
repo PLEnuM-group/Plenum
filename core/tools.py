@@ -36,12 +36,12 @@ def scaling_estimation(
 
     # First, check that the last pval we put into the df is reasonable
     # if it's nan, the scaling factor was too large
-    if np.isnan(df.iloc[-1]["log10(p)"]) or (df.iloc[-1]["pval"]>0.99):
+    if np.isnan(df.iloc[-1]["log10(p)"]) or (df.iloc[-1]["pval"] > 0.99):
         return scaler * stepper * 0.9
-    # if it's infinite, the scaling factor was too small   
+    # if it's infinite, the scaling factor was too small
     if not np.isfinite(df.iloc[-1]["log10(p)"]):
         return scaler / stepper
-    
+
     # start with sampling min_steps values to estimate the scaling factor
     if len(df) <= min_steps:
         scaler_new = scaler / stepper
@@ -75,6 +75,7 @@ def scaling_estimation(
         )
         _ = current_thresholds.pop(0)
     return scaler_new
+
 
 def read_effective_area():
     column_names = [
@@ -130,14 +131,15 @@ def get_scaler(x, thresh, key_x="log10(p)", key_y="scaler"):
     That's why it looks this complicated.
     """
     # only use finite values
-    mask = np.isfinite(x[key_x]) & (x[key_x]>0)
-    if np.sum(~mask) > 10: raise ValueError(f"Too many non-finite values: {x[key_x]}")
+    mask = np.isfinite(x[key_x]) & (x[key_x] > 0)
+    if np.sum(~mask) > 10:
+        raise ValueError(f"Too many non-finite values: {x[key_x]}")
 
     return np.power(
         10,
-        np.poly1d(np.polyfit(np.log10(x.loc[mask, key_x]), np.log10(x.loc[mask, key_y]), 1))(
-            np.log10(-np.log10(thresh))
-        ),
+        np.poly1d(
+            np.polyfit(np.log10(x.loc[mask, key_x]), np.log10(x.loc[mask, key_y]), 1)
+        )(np.log10(-np.log10(thresh))),
     )
 
 
@@ -333,7 +335,7 @@ def plot_area(
     colorbar=dict(cmap="viridis"),
     masked=True,
     galactic=False,
-    **kwargs
+    **kwargs,
 ):
     r"""Plot a 2dim function on the map using pcolormesh
 
@@ -562,7 +564,6 @@ def _trans(ra, dec):
 def add_plane(ax, coords="ra", color="black", label="Galactic center/plane", **kwargs):
     in_deg = True if "transform" in kwargs else False
 
-    c = SkyCoord(frame="galactic", l=0.0, b=0.0, unit="deg")
     gc = SkyCoord(l=0 * u.degree, b=0 * u.degree, frame="galactic")
     if coords == "ra":
         cra, cdec = _trans(gc.fk5.ra, gc.fk5.dec)
@@ -585,7 +586,7 @@ def add_plane(ax, coords="ra", color="black", label="Galactic center/plane", **k
         linestyle=ls,
         label=label,
         alpha=alpha,
-        **kwargs
+        **kwargs,
     )
 
     num2 = 150
@@ -604,12 +605,19 @@ def add_plane(ax, coords="ra", color="black", label="Galactic center/plane", **k
     else:
         cra, cdec = cra.rad, cdec.rad
     ax.plot(
-        cra, cdec, marker="None", c=color, alpha=alpha, linestyle=ls, linewidth=lw, **kwargs
+        cra,
+        cdec,
+        marker="None",
+        c=color,
+        alpha=alpha,
+        linestyle=ls,
+        linewidth=lw,
+        **kwargs,
     )
     return
 
 
-def add_obj(ax, name, coords="ra", marker="o", c="red", **kwargs):
+def add_obj(ax, name, coords="ra", marker="o", c="red", label_as_text=True, **kwargs):
 
     ras = {
         "txs": np.radians(77.36),
@@ -627,18 +635,21 @@ def add_obj(ax, name, coords="ra", marker="o", c="red", **kwargs):
         _ra, _dec = ras[name], decs[name]
     if "transform" in kwargs:
         _ra, _dec = np.rad2deg(_ra), np.rad2deg(_dec)
-
+    _label = kwargs.pop("label", labels[name])
     ax.plot(
-        _ra,
-        _dec,
-        marker=marker,
-        ms=15,
-        c=c,
-        linestyle="None",
-        label=kwargs.pop("label", labels[name]),
-        **kwargs
+        _ra, _dec, marker=marker, ms=15, c=c, linestyle="None", label=_label, **kwargs
     )
+    if label_as_text:
+        ax.text(
+            _ra,
+            _dec,
+            s=_label,
+            fontsize=20,
+            bbox=dict(boxstyle="round", fc="w", linewidth=2),
+            transform=kwargs.pop("transform", None),
+        )
     return
+
 
 def add_src(ax, src, label, coords="ra", dec_line=False, marker="o", c="red", **kwargs):
 
@@ -651,20 +662,12 @@ def add_src(ax, src, label, coords="ra", dec_line=False, marker="o", c="red", **
         _ra, _dec = np.rad2deg(_ra), np.rad2deg(_dec)
 
     ax.plot(
-        _ra,
-        _dec,
-        marker=marker,
-        ms=15,
-        c=c,
-        linestyle="None",
-        label=label,
-        **kwargs
+        _ra, _dec, marker=marker, ms=15, c=c, linestyle="None", label=label, **kwargs
     )
     if dec_line:
-        rr = np.linspace(0, np.pi*2)
+        rr = np.linspace(0, np.pi * 2)
         ax.plot(np.pi - rr, np.full_like(rr, _dec), c=c, ls="-", **kwargs)
     return
-
 
 
 def add_extended_plane(ax, color="black", ngrid=500, **kwargs):

@@ -56,7 +56,8 @@ num = 500
 ra_vals = np.linspace(0, 2 * np.pi, num)
 ra_val_mids = get_mids(ra_vals)
 ra_val_width = np.diff(ra_vals)
-dec_vals = np.linspace(-np.pi / 2, np.pi / 2, num)
+dec_vals = np.arcsin(np.linspace(-1, 1, num))
+# dec_vals = np.linspace(-np.pi / 2, np.pi / 2, num)
 dec_val_mids = get_mids(dec_vals)
 
 inst_rel_events_ra_dec = {}
@@ -118,10 +119,12 @@ for ii, gamma in tqdm(enumerate(gamma_range)):
             :, np.newaxis
         ] * np.ones_like(np.atleast_2d(ra_vals))
         if "Gen" in k:
-            inst_rel_events_ra_dec[gamma]["Plenum-2"] += inst_rel_events_ra_dec[gamma][
-                k
-            ]
-            rel_events_ra_dec[gamma]["Plenum-2"] += rel_events_ra_dec[gamma][k]
+            inst_rel_events_ra_dec[gamma]["Plenum-2"] += (
+                inst_rel_events_ra_dec[gamma][k] * GEN2_FACTOR
+            )
+            rel_events_ra_dec[gamma]["Plenum-2"] += (
+                rel_events_ra_dec[gamma][k] * GEN2_FACTOR
+            )
         elif "Ice" in k:
             inst_rel_events_ra_dec[gamma]["Plenum-1"] += inst_rel_events_ra_dec[gamma][
                 k

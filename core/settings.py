@@ -86,8 +86,9 @@ sigma1 = (1 - norm.cdf(1)) / 2
 
 # important object coordinates
 sgr_a = SkyCoord(0, 0, unit="rad", frame="galactic")
-txs0506 = SkyCoord(77.36, 5.69, unit="deg", frame="icrs")
-ngc1068 = SkyCoord(40.67, -0.01, unit="deg", frame="icrs")
+# 4FGL-DR4 coordinates
+txs0506 = SkyCoord(77.3593, 5.7014, unit="deg", frame="fk5", equinox="J2000")
+ngc1068 = SkyCoord(40.667, -0.0069, unit="deg", frame="fk5", equinox="J2000")
 
 
 # plot settings
@@ -129,6 +130,11 @@ ecap_listed_cmap = ListedColormap(
         start=(149 - 256) / 256 * 3 + 1, rot=0, light=1, dark=0.1, hue=1.2, n_colors=12
     )
 )
+
+cmap_light = sns.cubehelix_palette(
+    start=0.8, rot=-0.75, light=1, hue=1, dark=0, as_cmap=True
+)
+
 # define location of experiments
 # and plot settings
 GEN2_FACTOR = 7.5
@@ -147,6 +153,7 @@ detector_configurations = {
     ),
 }
 
+# coordinates of detectors on globe
 poles = {
     "IceCube": {
         "lon": 1 * u.deg,
