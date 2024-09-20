@@ -138,18 +138,31 @@ cmap_light = sns.cubehelix_palette(
 # define location of experiments
 # and plot settings
 GEN2_FACTOR = 7.5
+IC_FACTOR = 1.4
+TRIDENT_FACTOR = (
+    10  # extracted from aeff at horizon at 10 TeV https://arxiv.org/pdf/2207.04519
+)
+NEON_FACTOR = (
+    3.3  # extracted from aeff at horizon at 10 TeV https://arxiv.org/pdf/2408.05122
+)
+
 detector_configurations = {
-    "IceCube": (["IceCube"], [1]),
+    "IceCube": (["IceCube"], [IC_FACTOR]),
+    "IceCube - data release": (["IceCube"], [1]),
     "IceCube-Gen2": (["IceCube"], [GEN2_FACTOR]),
-    "IceCube+Gen2": (["IceCube", "IceCube"], [1, GEN2_FACTOR]),
-    "P-ONE": (["IceCube", "P-ONE"], [1, 1]),
+    # "IceCube+Gen2": (["IceCube", "IceCube"], [1, GEN2_FACTOR]),
+    "P-ONE": (["IceCube", "P-ONE"], [IC_FACTOR + 1, 1]),
     "P-ONE-only": (["P-ONE"], [1]),
-    "KM3NeT": (["IceCube", "KM3NeT"], [1, 1]),
-    "IC+P1+K3": (["IceCube", "P-ONE", "KM3NeT"], [1, 1, 1]),
-    "Plenum-1": (["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"], [2, 1, 1, 1]),
+    "KM3NeT": (["IceCube", "KM3NeT"], [IC_FACTOR + 1, 1]),
+    "KM3NeT-only": (["KM3NeT"], [1]),
+    "IC+P1+K3": (["IceCube", "P-ONE", "KM3NeT"], [IC_FACTOR + 1, 1, 1]),
+    "Plenum-1": (
+        ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"],
+        [IC_FACTOR + 1, 1, 1, 1],
+    ),
     "Plenum-2": (
         ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"],
-        [1 + GEN2_FACTOR, 1, 1, 1],
+        [IC_FACTOR + GEN2_FACTOR, 1, 1, 1],
     ),
 }
 
@@ -193,6 +206,30 @@ poles = {
         "color": "0.65",  # colors[0],
         "ls": "--",
         "label": "at GVD location",
+        "marker": "d",
+    },
+    "HUNT": {
+        "lon": 108.1650 * u.deg,
+        "lat": 53.5587 * u.deg,
+        "color": "orchid",
+        "ls": "--",
+        "label": "at HUNT location",  # same as Baikal-GVD for now
+        "marker": "d",
+    },
+    "TRIDENT": {
+        "lon": 114.0 * u.deg,
+        "lat": 17.4 * u.deg,
+        "color": "purple",
+        "ls": "--",
+        "label": "at TRIDENT location",
+        "marker": "d",
+    },
+    "NEON": {
+        "lon": 114.0 * u.deg,
+        "lat": 17.4 * u.deg,
+        "color": "mediumvioletred",
+        "ls": "--",
+        "label": "at NEON location",  # same as TRIDENT for now
         "marker": "d",
     },
     "Plenum-1": {"color": "#339999", "ls": "-", "label": r"PLE$\nu$M-1", "marker": "s"},

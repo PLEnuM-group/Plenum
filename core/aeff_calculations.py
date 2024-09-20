@@ -234,7 +234,7 @@ def get_aeff_and_binnings(key="full", verbose=False):
     "upgoing" for effective area >-5deg
 
     Returns:
-    aeff_2d, log_ebins, ebins, sindec_bins, ra_bins
+    aeff_2d, log_ebins, ebins, sindec_bins
     """
     with open(
         join(BASEPATH, f"resources/tabulated_logE_sindec_aeff_{key}.pckl"), "rb"
