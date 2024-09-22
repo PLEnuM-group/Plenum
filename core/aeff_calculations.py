@@ -344,10 +344,10 @@ if __name__ == "__main__":
         aeff_2d["icecube"], st.sindec_mids, st.ra_mids, st.ra_width, log_int=False
     )
     aeff_i = {}
-    aeff_i["Plenum-1"] = np.zeros_like(aeff_2d["icecube"])
+    # aeff_i["Plenum-1"] = np.zeros_like(aeff_2d["icecube"]) # should be added via event rate, if at all
 
     # loop over detectors
-    for k in ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"]:
+    for k in ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD", "TRIDENT", "HUNT", "NEON"]:
         aeff_i[k] = aeff_rotation(
             poles[k]["lat"],
             poles[k]["lon"],
@@ -356,12 +356,15 @@ if __name__ == "__main__":
             ra_width,
             log_aeff=False,
         )
-        aeff_i["Plenum-1"] += aeff_i[k]
+        # aeff_i["Plenum-1"] += aeff_i[k]
 
     ## GEN-2 will have ~7.5x effective area ==> 5times better discovery potential
     aeff_i["Gen-2"] = aeff_i["IceCube"] * GEN2_FACTOR
+    aeff_i["TRIDENT"] *= st.TRIDENT_FACTOR
+    aeff_i["NEON"] *= st.NEON_FACTOR
+    aeff_i["HUNT"] *= st.HUNT_FACTOR
     ## in plenum-2, IC is replaced by Gen-2
-    aeff_i["Plenum-2"] = aeff_i["Plenum-1"] - aeff_i["IceCube"] + aeff_i["Gen-2"]
+    # aeff_i["Plenum-2"] = aeff_i["Plenum-1"] - aeff_i["IceCube"] + aeff_i["Gen-2"]
 
     ## save to disc
     savefile = join(BASEPATH, "resources/tabulated_logE_sindec_aeff_upgoing.pckl")
@@ -376,10 +379,10 @@ if __name__ == "__main__":
     )
 
     aeff_i_full = {}
-    aeff_i_full["Plenum-1"] = np.zeros_like(aeff_2d["icecube_full"])
+    # aeff_i_full["Plenum-1"] = np.zeros_like(aeff_2d["icecube_full"]) # should be added via event rate, if at all
 
     # loop over detectors
-    for k in ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"]:
+    for k in ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD", "TRIDENT", "HUNT", "NEON"]:
         aeff_i_full[k] = aeff_rotation(
             poles[k]["lat"],
             poles[k]["lon"],
@@ -388,13 +391,16 @@ if __name__ == "__main__":
             ra_width,
             log_aeff=False,
         )
-        aeff_i_full["Plenum-1"] += aeff_i_full[k]
+        # aeff_i_full["Plenum-1"] += aeff_i_full[k]
 
     # GEN-2 will have ~7.5x effective area ==> 5times better discovery potential
     aeff_i_full["Gen-2"] = aeff_i_full["IceCube"] * GEN2_FACTOR
-    aeff_i_full["Plenum-2"] = (
-        aeff_i_full["Plenum-1"] - aeff_i_full["IceCube"] + aeff_i_full["Gen-2"]
-    )
+    aeff_i_full["TRIDENT"] *= st.TRIDENT_FACTOR
+    aeff_i_full["NEON"] *= st.NEON_FACTOR
+    aeff_i_full["HUNT"] *= st.HUNT_FACTOR
+    # aeff_i_full["Plenum-2"] = (
+    #     aeff_i_full["Plenum-1"] - aeff_i_full["IceCube"] + aeff_i_full["Gen-2"]
+    # )
 
     # save
     savefile = join(BASEPATH, "resources/tabulated_logE_sindec_aeff_full.pckl")

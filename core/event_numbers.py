@@ -21,20 +21,14 @@ else:
 
 ### calculate raw neutrino rate ~ detection efficiency
 # Res = integral dE ( A_eff * (E/GeV)**(-gamma) ) / delta sindec
-gamma_range = np.round(np.arange(1.5, 3.6, step=0.1), decimals=1)
+gamma_range = [2.0, 2.5, 3.0]  # np.round(np.arange(1.5, 3.6, step=0.1), decimals=1)
 
 tcks = dict()
 for ii, gamma in enumerate(gamma_range):
     tcks[gamma] = dict()
-    for det in [
-        "Plenum-1",
-        "Plenum-2",
-        "IceCube",
-        "Gen-2",
-        "P-ONE",
-        "KM3NeT",
-        "Baikal-GVD",
-    ]:
+    for det in poles:
+        if "Plenum" in det:
+            continue
         Res = np.sum(
             aeff_eval_e_sd(aeff_2d[det], sindec_width, ewidth, ra_width)
             * (emids / E_NORM) ** (-gamma),

@@ -93,7 +93,7 @@ grid2d, eq_coords = setup_aeff_grid(
 # i.e. calculate the average bg flux per day in equatorial sin(dec)
 bg_i = {}
 bg_hist_i = {}
-det_list = ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"]
+det_list = ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD", "TRIDENT", "HUNT", "NEON"]
 for k in det_list:
     bg_i[k] = Mephistogram(
         aeff_rotation(
@@ -112,7 +112,12 @@ for k in det_list:
 
 # check if histos are matching
 # print(bg_i["IceCube"].match(aeff_2d["IceCube"], verbose=True))
-
+print(
+    "Saving background flux to: ",
+    join(st.LOCALPATH, "atmospheric_background_daemonflux_MH.pckl"),
+    "and",
+    join(st.LOCALPATH, "atmospheric_background_daemonflux_multi-det.pckl"),
+)
 with open(join(st.LOCALPATH, "atmospheric_background_daemonflux_MH.pckl"), "wb") as f:
     pickle.dump(bg_i, f)
 

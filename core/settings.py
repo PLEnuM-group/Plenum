@@ -138,13 +138,10 @@ cmap_light = sns.cubehelix_palette(
 # define location of experiments
 # and plot settings
 GEN2_FACTOR = 7.5
-IC_FACTOR = 1.4
-TRIDENT_FACTOR = (
-    10  # extracted from aeff at horizon at 10 TeV https://arxiv.org/pdf/2207.04519
-)
-NEON_FACTOR = (
-    3.3  # extracted from aeff at horizon at 10 TeV https://arxiv.org/pdf/2408.05122
-)
+IC_FACTOR = 1.4  # this is actually a livetime factor, not aeff! careful
+TRIDENT_FACTOR = 7.5  # from volume in https://arxiv.org/pdf/2207.04519
+NEON_FACTOR = 10  # from volume in https://arxiv.org/pdf/2408.05122
+HUNT_FACTOR = 30  # from volume in https://pos.sissa.it/444/1080/pdf
 
 detector_configurations = {
     "IceCube": (["IceCube"], [IC_FACTOR]),
@@ -161,8 +158,22 @@ detector_configurations = {
         [IC_FACTOR + 1, 1, 1, 1],
     ),
     "Plenum-2": (
-        ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"],
-        [IC_FACTOR + GEN2_FACTOR, 1, 1, 1],
+        ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD", "TRIDENT"],
+        [IC_FACTOR + GEN2_FACTOR, 1, 1, 1, 1],
+    ),
+    # "Plenum-3": (
+    #     ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD", "TRIDENT"],
+    #     [
+    #         IC_FACTOR + GEN2_FACTOR,
+    #         1,
+    #         1,
+    #         1 + HUNT_FACTOR,
+    #         TRIDENT_FACTOR + NEON_FACTOR,
+    #     ],  # simplified and runs faster
+    # ),
+    "Plenum-3": (
+        ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD", "TRIDENT", "NEON", "HUNT"],
+        [IC_FACTOR + GEN2_FACTOR, 1, 1, 1, 1, 1, 1],
     ),
 }
 
@@ -238,5 +249,11 @@ poles = {
         "ls": "-.",
         "label": r"PLE$\nu$M-2",
         "marker": "o",
+    },
+    "Plenum-3": {
+        "color": "mediumvioletred",
+        "ls": "-",
+        "label": r"PLE$\nu$M-3",
+        "marker": "s",
     },
 }
