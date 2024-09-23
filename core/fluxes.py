@@ -230,7 +230,8 @@ def astro_flux(
 # Model fit Inoue et al 2023 ICRC
 # https://pos.sissa.it/444/1161/pdf
 inoue_data = read_csv(
-    "/home/hpc/capn/capn102h/repos/Plenum/local/neutrino_models/inoue_icrc2023.txt",
+    "/home/mbustamante/Research/PLEnuM/Plenum/resources/inoue_icrc2023.txt",
+    # "/home/hpc/capn/capn102h/repos/Plenum/local/neutrino_models/inoue_icrc2023.txt",
     skipinitialspace=True,
 )
 inoue_data["E_GeV"] = 10 ** (inoue_data["logE_eV"] - 9)
@@ -249,7 +250,8 @@ inoue_src_flux = model_flux(
 )
 # see https://doi.org/10.3847/1538-4357/ac1c77
 disk_corona_flux = read_table(
-    "/home/hpc/capn/capn102h/repos/Plenum/local/ngc_1068_flux_template_Lx_43.txt",
+    # "/home/hpc/capn/capn102h/repos/Plenum/local/ngc_1068_flux_template_Lx_43.txt",
+    "/home/mbustamante/Research/PLEnuM/Plenum/resources/ngc_1068_flux_template_Lx_43.txt",
     sep="\t",
     skiprows=1,
     names=["energy", "raw_flux"],
@@ -440,8 +442,8 @@ def plot_spectrum(energy, events, labels, title, f, ax, **kwargs):
 
 # set specific source fluxes for all scripts
 
-
-with open(join(LOCALPATH, "effective_area_MH_upgoing.pckl"), "rb") as f:
+# with open(join(LOCALPATH, "effective_area_MH_upgoing.pckl"), "rb") as f:
+with open(join(LOCALPATH, "effective_area_upgoing.pckl"), "rb") as f:
     aeff_2d = load(f)
 # angular resolution
 with open(join(LOCALPATH, f"Psi2-{delta_psi_max}_res_mephistograms.pckl"), "rb") as f:
