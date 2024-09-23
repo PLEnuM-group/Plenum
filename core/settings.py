@@ -159,26 +159,34 @@ detector_configurations = {
     ),
     "Plenum-2": (
         ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"],
-        [IC_FACTOR + GEN2_FACTOR, 1, 1, 1],
+        [IC_FACTOR + 1 + GEN2_FACTOR, 1, 1, 1],  # = plenum-1 + gen2
     ),
     "Plenum-2.5": (
         ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD", "TRIDENT"],
-        [IC_FACTOR + GEN2_FACTOR, 1, 1, 1, 1],
+        [IC_FACTOR + 1 + GEN2_FACTOR, 1, 1, 1, 1],  # = plenum-2 + TRIDENT
+    ),
+    "Plenum-3": (
+        ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD", "TRIDENT"],
+        [
+            IC_FACTOR + 1 + GEN2_FACTOR,
+            1,
+            1,
+            1 + HUNT_FACTOR,  # HUNT at Baikal location
+            TRIDENT_FACTOR + NEON_FACTOR,  # TRIDENT and NEON at TRIDENT location
+        ],  # simplified and runs faster - only works for equal lifetime contributions
     ),
     # "Plenum-3": (
-    #     ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD", "TRIDENT"],
+    #     ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD", "TRIDENT", "NEON", "HUNT"],
     #     [
-    #         IC_FACTOR + GEN2_FACTOR,
+    #         IC_FACTOR + 1 + GEN2_FACTOR,
     #         1,
     #         1,
-    #         1 + HUNT_FACTOR,
-    #         TRIDENT_FACTOR + NEON_FACTOR,
-    #     ],  # simplified and runs faster
+    #         1,
+    #         1,
+    #         1,
+    #         1,
+    #     ],  # = plenum2 + all chinese detectors
     # ),
-    "Plenum-3": (
-        ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD", "TRIDENT", "NEON", "HUNT"],
-        [IC_FACTOR + GEN2_FACTOR, 1, 1, 1, 1, 1, 1],
-    ),
 }
 
 # coordinates of detectors on globe
