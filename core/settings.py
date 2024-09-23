@@ -158,6 +158,10 @@ detector_configurations = {
         [IC_FACTOR + 1, 1, 1, 1],
     ),
     "Plenum-2": (
+        ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"],
+        [IC_FACTOR + GEN2_FACTOR, 1, 1, 1],
+    ),
+    "Plenum-2.5": (
         ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD", "TRIDENT"],
         [IC_FACTOR + GEN2_FACTOR, 1, 1, 1, 1],
     ),
