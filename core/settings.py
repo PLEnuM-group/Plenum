@@ -159,20 +159,20 @@ detector_configurations = {
     ),
     "Plenum-2": (
         ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"],
-        [IC_FACTOR + 1 + GEN2_FACTOR, 1, 1, 1],  # = plenum-1 + gen2
+        [IC_FACTOR + GEN2_FACTOR, 1, 1, 1],  # = plenum-1 + gen2
     ),
     "Plenum-2.5": (
         ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD", "TRIDENT"],
-        [IC_FACTOR + 1 + GEN2_FACTOR, 1, 1, 1, 1],  # = plenum-2 + TRIDENT
+        [IC_FACTOR + GEN2_FACTOR, 1, 1, 1, 1],  # = plenum-2 + TRIDENT
     ),
     "Plenum-3": (
         ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD", "TRIDENT"],
         [
-            IC_FACTOR + 1 + GEN2_FACTOR,
+            IC_FACTOR + GEN2_FACTOR,
             1,
             1,
             1 + HUNT_FACTOR,  # HUNT at Baikal location
-            TRIDENT_FACTOR + NEON_FACTOR,  # TRIDENT and NEON at TRIDENT location
+            1 + NEON_FACTOR / TRIDENT_FACTOR,  # TRIDENT and NEON at TRIDENT location
         ],  # simplified and runs faster - only works for equal lifetime contributions
     ),
     # "Plenum-3": (
@@ -226,7 +226,7 @@ poles = {
     "Baikal-GVD": {
         "lon": 108.1650 * u.deg,
         "lat": 53.5587 * u.deg,
-        "color": "0.65",  # colors[0],
+        "color": colors[1],
         "ls": "--",
         "label": "at GVD location",
         "marker": "d",
@@ -242,7 +242,7 @@ poles = {
     "TRIDENT": {
         "lon": 114.0 * u.deg,
         "lat": 17.4 * u.deg,
-        "color": "purple",
+        "color": "gray",  # "purple"
         "ls": "--",
         "label": "at TRIDENT location",
         "marker": "d",

@@ -28,3 +28,5 @@ notebooks/sandbox/firesong_tutorial.ipynb
 notebooks/sandbox/trident_input.ipynb
 notebooks/demo/demo_flux_to_events_diffuse_simplified.ipynb
 test.txt
+notebooks/demo/matplotlibrc
+notebooks/misc/plotting_standalone copy.ipynb
