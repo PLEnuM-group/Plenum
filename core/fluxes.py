@@ -442,11 +442,13 @@ def plot_spectrum(energy, events, labels, title, f, ax, **kwargs):
 
 # set specific source fluxes for all scripts
 
-# with open(join(LOCALPATH, "effective_area_MH_upgoing.pckl"), "rb") as f:
-with open(join(LOCALPATH, "effective_area_upgoing.pckl"), "rb") as f:
+
+with open(join(BASEPATH, "resources/effective_area_MH_upgoing.pckl"), "rb") as f:
     aeff_2d = load(f)
 # angular resolution
-with open(join(LOCALPATH, f"Psi2-{delta_psi_max}_res_mephistograms.pckl"), "rb") as f:
+with open(
+    join(BASEPATH, f"resources/Psi2-{delta_psi_max}_res_mephistograms.pckl"), "rb"
+) as f:
     all_psi = load(f)
 e_psi2_grid = all_psi["dec-0.0"]
 e_psi2_grid.normalize()

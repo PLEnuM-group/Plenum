@@ -226,7 +226,7 @@ poles = {
     "Baikal-GVD": {
         "lon": 108.1650 * u.deg,
         "lat": 53.5587 * u.deg,
-        "color": "0.65",  # colors[0],
+        "color": colors[1],
         "ls": "--",
         "label": "at GVD location",
         "marker": "d",
@@ -242,7 +242,7 @@ poles = {
     "TRIDENT": {
         "lon": 114.0 * u.deg,
         "lat": 17.4 * u.deg,
-        "color": "purple",
+        "color": "gray",  # "purple"
         "ls": "--",
         "label": "at TRIDENT location",
         "marker": "d",

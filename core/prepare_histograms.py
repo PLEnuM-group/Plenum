@@ -63,6 +63,8 @@ for hemi in keys:
 
     with open(join(st.LOCALPATH, f"effective_area_MH_{hemi}.pckl"), "wb") as f:
         pickle.dump(aeff_2d, f)
+    with open(join(st.BASEPATH, f"resources/effective_area_MH_{hemi}.pckl"), "wb") as f:
+        pickle.dump(aeff_2d, f)
 
     with open(join(st.BASEPATH, f"resources/effective_area_{hemi}.pckl"), "wb") as f:
         pickle.dump(aeff_2d_hist, f)
