@@ -230,7 +230,8 @@ def astro_flux(
 # Model fit Inoue et al 2023 ICRC
 # https://pos.sissa.it/444/1161/pdf
 inoue_data = read_csv(
-    "/home/mbustamante/Research/PLEnuM/Plenum/resources/inoue_icrc2023.txt",
+    join(BASEPATH, "resources/inoue_icrc2023.txt"),
+    # "/home/mbustamante/Research/PLEnuM/Plenum/resources/inoue_icrc2023.txt",
     # "/home/hpc/capn/capn102h/repos/Plenum/local/neutrino_models/inoue_icrc2023.txt",
     skipinitialspace=True,
 )
@@ -250,8 +251,8 @@ inoue_src_flux = model_flux(
 )
 # see https://doi.org/10.3847/1538-4357/ac1c77
 disk_corona_flux = read_table(
-    # "/home/hpc/capn/capn102h/repos/Plenum/local/ngc_1068_flux_template_Lx_43.txt",
-    "/home/mbustamante/Research/PLEnuM/Plenum/resources/ngc_1068_flux_template_Lx_43.txt",
+    join(BASEPATH, "resources/ngc_1068_flux_template_Lx_43.txt"),
+    # "/home/mbustamante/Research/PLEnuM/Plenum/resources/ngc_1068_flux_template_Lx_43.txt",
     sep="\t",
     skiprows=1,
     names=["energy", "raw_flux"],
