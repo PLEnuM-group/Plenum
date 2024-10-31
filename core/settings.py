@@ -151,7 +151,9 @@ detector_configurations = {
     "P-ONE": (["IceCube", "P-ONE"], [IC_FACTOR + 1, 1]),
     "P-ONE-only": (["P-ONE"], [1]),
     "KM3NeT": (["IceCube", "KM3NeT"], [IC_FACTOR + 1, 1]),
+    "KM3NeT-short": (["IceCube", "KM3NeT"], [IC_FACTOR + 0.5, 0.5]),
     "KM3NeT-only": (["KM3NeT"], [1]),
+    "KM3NeT-only-short": (["KM3NeT"], [0.5]),
     "IC+P1+K3": (["IceCube", "P-ONE", "KM3NeT"], [IC_FACTOR + 1, 1, 1]),
     "Plenum-1": (
         ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD"],

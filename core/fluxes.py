@@ -442,7 +442,10 @@ def plot_spectrum(energy, events, labels, title, f, ax, **kwargs):
 
 
 # set specific source fluxes for all scripts
-
+GAMMA_TXS = 2.0  # best-fit from 2022 NGC 1068 paper
+PHI_TXS = 2.7e-20  # @ 100 TeV / GeV cm² s
+E0_TXS = 1e5  # 100 TeV
+txs_flux = PL_flux(PHI_TXS, GAMMA_TXS, E0_TXS, "powerlaw")
 
 with open(join(BASEPATH, "resources/effective_area_MH_upgoing.pckl"), "rb") as f:
     aeff_2d = load(f)
