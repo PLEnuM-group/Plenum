@@ -30,3 +30,8 @@ notebooks/demo/demo_flux_to_events_diffuse_simplified.ipynb
 test.txt
 notebooks/demo/matplotlibrc
 notebooks/misc/plotting_standalone copy.ipynb
+resources/flux_ngc_disc_pot_ERC.pickle
+resources/flux_ngc_spectral_disc_pot_erc.pickle
+resources/ngc_spectral_disc_pot_IceCube_erc.pickle
+resources/ngc_spectral_disc_pot_KM3NeT-only-short_erc.pickle
+resources/ngc_spectral_disc_pot_KM3NeT-short_erc.pickle

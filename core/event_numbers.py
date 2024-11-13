@@ -88,10 +88,10 @@ for ii, gamma in tqdm(enumerate(gamma_range)):
     # these will be the integration coordinates
     pp, tt = np.meshgrid(ra_vals, dec_vals)
     eq_grid = SkyCoord(pp * u.radian, tt * u.radian, frame="icrs")
-    inst_rel_events_ra_dec[gamma]["Plenum-1"] = np.zeros_like(pp)
-    inst_rel_events_ra_dec[gamma]["Plenum-2"] = np.zeros_like(pp)
-    rel_events_ra_dec[gamma]["Plenum-1"] = np.zeros_like(pp)
-    rel_events_ra_dec[gamma]["Plenum-2"] = np.zeros_like(pp)
+    # inst_rel_events_ra_dec[gamma]["Plenum-1"] = np.zeros_like(pp)
+    # inst_rel_events_ra_dec[gamma]["Plenum-2"] = np.zeros_like(pp)
+    # rel_events_ra_dec[gamma]["Plenum-1"] = np.zeros_like(pp)
+    # rel_events_ra_dec[gamma]["Plenum-2"] = np.zeros_like(pp)
     # loop over detectors
     for k, coord in poles.items():
         if "Plenum" in k:
@@ -112,27 +112,27 @@ for ii, gamma in tqdm(enumerate(gamma_range)):
         rel_events_ra_dec[gamma][k] = rel_events_ra_dec[gamma][k][
             :, np.newaxis
         ] * np.ones_like(np.atleast_2d(ra_vals))
-        if "Gen" in k:
-            inst_rel_events_ra_dec[gamma]["Plenum-2"] += (
-                inst_rel_events_ra_dec[gamma][k] * GEN2_FACTOR
-            )
-            rel_events_ra_dec[gamma]["Plenum-2"] += (
-                rel_events_ra_dec[gamma][k] * GEN2_FACTOR
-            )
-        elif "Ice" in k:
-            inst_rel_events_ra_dec[gamma]["Plenum-1"] += inst_rel_events_ra_dec[gamma][
-                k
-            ]
-            rel_events_ra_dec[gamma]["Plenum-1"] += rel_events_ra_dec[gamma][k]
-        else:
-            inst_rel_events_ra_dec[gamma]["Plenum-1"] += inst_rel_events_ra_dec[gamma][
-                k
-            ]
-            rel_events_ra_dec[gamma]["Plenum-1"] += rel_events_ra_dec[gamma][k]
-            inst_rel_events_ra_dec[gamma]["Plenum-2"] += inst_rel_events_ra_dec[gamma][
-                k
-            ]
-            rel_events_ra_dec[gamma]["Plenum-2"] += rel_events_ra_dec[gamma][k]
+        # if "Gen" in k:
+        #     inst_rel_events_ra_dec[gamma]["Plenum-2"] += (
+        #         inst_rel_events_ra_dec[gamma][k] * GEN2_FACTOR
+        #     )
+        #     rel_events_ra_dec[gamma]["Plenum-2"] += (
+        #         rel_events_ra_dec[gamma][k] * GEN2_FACTOR
+        #     )
+        # elif "Ice" in k:
+        #     inst_rel_events_ra_dec[gamma]["Plenum-1"] += inst_rel_events_ra_dec[gamma][
+        #         k
+        #     ]
+        #     rel_events_ra_dec[gamma]["Plenum-1"] += rel_events_ra_dec[gamma][k]
+        # else:
+        #     inst_rel_events_ra_dec[gamma]["Plenum-1"] += inst_rel_events_ra_dec[gamma][
+        #         k
+        #     ]
+        #     rel_events_ra_dec[gamma]["Plenum-1"] += rel_events_ra_dec[gamma][k]
+        #     inst_rel_events_ra_dec[gamma]["Plenum-2"] += inst_rel_events_ra_dec[gamma][
+        #         k
+        #     ]
+        #     rel_events_ra_dec[gamma]["Plenum-2"] += rel_events_ra_dec[gamma][k]
 
 with open(join(LOCALPATH, "rel_events_ra_dec.pckl"), "wb") as f:
     pickle.dump((rel_events_ra_dec, ra_vals, dec_vals), f)
