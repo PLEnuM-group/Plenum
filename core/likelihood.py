@@ -11,7 +11,7 @@ tmp_path = str(Path(__file__).parent.resolve())
 BASEPATH = "/".join(tmp_path.split("/")[:-1])
 
 
-def poisson_llh(mu_i, k_i):
+def poisson_llh(mu_i, k_i, summed=True):
     """
     Calculate the -2 log(Poisson Log-Likelihood) for given model parameters.
 
@@ -62,7 +62,10 @@ def poisson_llh(mu_i, k_i):
         - k_i[_mask] * np.log(k_i[_mask])
     )
 
-    return -2 * np.sum(log_LLH)
+    if summed:
+        return -2 * np.sum(log_LLH)
+    else:
+        return -2 * log_LLH
 
 
 # Set up LLH function
