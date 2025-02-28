@@ -22,6 +22,8 @@ else:
 ### calculate raw neutrino rate ~ detection efficiency
 # Res = integral dE ( A_eff * (E/GeV)**(-gamma) ) / delta sindec
 gamma_range = [2.0, 2.5, 3.0]  # np.round(np.arange(1.5, 3.6, step=0.1), decimals=1)
+## NEW: base on PS acceptance
+
 
 tcks = dict()
 for ii, gamma in enumerate(gamma_range):

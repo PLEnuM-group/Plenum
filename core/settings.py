@@ -53,8 +53,11 @@ logE_cut = 3.4  # log10 (Ecut / GeV)
 step = 0.05
 logE_bins = np.arange(2, 9.05, step=step)
 logE_reco_bins = np.arange(2, 9.0, step=step)
-sindec_bins = np.linspace(-1, 1, num=101)
-ra_bins = np.linspace(0, np.pi * 2, num=100)
+print("Point-source binning!")
+# sindec_bins = np.linspace(-1, 1, num=500, endpoint=True)
+dec_bins = np.linspace(-np.pi / 2, np.pi / 2, num=502, endpoint=True)
+sindec_bins = np.sin(dec_bins)
+ra_bins = np.linspace(0, np.pi * 2, num=500, endpoint=True)
 
 delta_psi_max = 3  # 3 for soft spectra, 1 for hard spectra
 bins_per_psi2 = 25
@@ -66,8 +69,8 @@ psi2_mids = get_mids(psi2_bins)
 # inferred binning/bin mids
 logE_mids = get_mids(logE_bins)
 ebins = np.power(10, logE_bins)
-# emids = np.power(10, logE_mids)
-emids = get_mids(ebins)
+emids = np.power(10, logE_mids)
+# emids = get_mids(ebins)
 ewidth = np.diff(ebins)
 
 logE_reco_mids = get_mids(logE_reco_bins)
@@ -199,6 +202,14 @@ poles = {
         "color": "k",
         "ls": "-",
         "label": "IceCube",
+        "marker": "d",
+    },
+    "Horizon": {
+        "lon": 120 * u.deg,
+        "lat": 0 * u.deg,
+        "color": "k",
+        "ls": "-",
+        "label": "Horizon",
         "marker": "d",
     },
     "Gen-2": {

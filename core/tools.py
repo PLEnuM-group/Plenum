@@ -173,7 +173,7 @@ def array_source_interp(dec, array, sindec_mids, axis=0):
     if low_ind >= len(sindec_mids):
         # print("end of range")
         array_interp = array[:, -1]
-    elif low_ind == 0:
+    elif low_ind <= 0:
         # print("low end range")
         array_interp = array[:, low_ind]
     else:

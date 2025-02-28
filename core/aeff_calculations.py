@@ -1,4 +1,5 @@
 import numpy as np
+import healpy as hp
 from os.path import join
 import pickle
 import astropy.units as u
@@ -68,7 +69,7 @@ def calc_aeff_factor(aeff, ewidth, livetime, **config):
         Determines whether to perform a point source ('ps') or diffuse ('diff') calculation.
 
     dec : float, default=0
-        Declination angle in degrees.
+        Declination angle in *radian*.
 
     sindec_mids : numpy.ndarray
         Array of sin(declination) midpoints for point source calculation.
@@ -130,9 +131,9 @@ def calc_aeff_factor(aeff, ewidth, livetime, **config):
 
 def setup_aeff_grid(
     aeff_baseline,
-    sindec_mids,
+    sindec_mids_,
     ra_,
-    ra_width,
+    ra_width_,
     local=False,
     log_int=False,
     method=interpolation_method,
@@ -149,7 +150,7 @@ def setup_aeff_grid(
     grid2d = []
 
     # pad the arrays so that we don't get ugly edge effects
-    padded_sindec_mids = np.concatenate([[-1], sindec_mids, [1]])
+    padded_sindec_mids = np.concatenate([[-1], sindec_mids_, [1]])
     # loop over rows of aeff = per slice in energy
     for aeff in aeff_baseline:
         padded_aeff = np.pad(aeff, pad_width=1, mode="edge")
@@ -158,10 +159,12 @@ def setup_aeff_grid(
             # this is the IceCube case, where we need to spin
             # a_eff "upside down" from equatorial to local coordinates
             padded_aeff = (
-                padded_aeff[::-1, np.newaxis] / ra_width * np.ones((1, len(ra_)))
+                padded_aeff[::-1, np.newaxis] / ra_width_ * np.ones((1, len(ra_)))
             )
         else:
-            padded_aeff = padded_aeff[:, np.newaxis] / ra_width * np.ones((1, len(ra_)))
+            padded_aeff = (
+                padded_aeff[:, np.newaxis] / ra_width_ * np.ones((1, len(ra_)))
+            )
         # added ra as new axis and normalize accordingly
         padded_aeff /= len(ra_)
         # pad the arrays so that we don't get ugly edge effects
@@ -177,9 +180,64 @@ def setup_aeff_grid(
     # grid elements are calculated for each energy bin, grid is theta x phi
     # coordinate grid in equatorial coordinates (icrs)
     # these will be the integration coordinates (without padding)
-    pp, tt = np.meshgrid(ra_, np.arcsin(sindec_mids))
+    pp, tt = np.meshgrid(ra_, np.arcsin(sindec_mids_))
     eq_coords = SkyCoord(pp * u.radian, tt * u.radian, frame="icrs")
     return grid2d, eq_coords
+
+
+def earth_rotation(
+    coord_lat,
+    coord_lon,
+    eq_coords,
+    hp_coords,
+    grid2d,
+    _ra_width,
+    log_aeff=False,
+    return_3D=False,
+):
+    """
+    Idea: transform the integration over R.A. per sin(dec) into local coordinates
+
+    Disclaimer: the local coordinate trafo will not 100%-accurately recover
+    the original coordinates if you're at the north pole. it accounts for the
+    minuscle wobble of Earth's axis wrt. equatorial coordinates.
+
+    """
+    # local detector
+    loc = EarthLocation(lat=coord_lat, lon=coord_lon)
+    # arbitrary time, doesnt really matter here
+    time = Time("2025-01-01 12:00:00")
+    # transform integration coordinates to local frame
+    local_coords = hp_coords.transform_to(AltAz(obstime=time, location=loc))
+    # these local coordinates match the coordinates of the A_eff in grid2d
+
+    # sum up the contributions over the transformed RA axis per declination
+    # loop over the energy bins to get the same shape of aeff as before
+    # sum along transformed ra coordinates
+    new_aeff = []
+    for _grid in grid2d:
+        if log_aeff:
+            rot_aeff = np.exp(
+                _grid((np.sin(local_coords.alt.rad), local_coords.az.rad))
+                * _ra_width[0]
+            )
+        else:
+            rot_aeff = (
+                _grid((np.sin(local_coords.alt.rad), local_coords.az.rad))
+                * _ra_width[0]
+            )
+        new_aeff.append(
+            hp.get_interp_val(
+                rot_aeff,
+                np.pi / 2 - eq_coords.dec.radian,
+                np.pi - eq_coords.ra.radian,
+            )
+        )
+    new_aeff = np.array(new_aeff)
+    if return_3D:
+        return new_aeff
+    else:
+        return np.sum(new_aeff, axis=2)
 
 
 def aeff_rotation(coord_lat, coord_lon, eq_coords, grid2d, ra_width, log_aeff=False):
@@ -295,117 +353,141 @@ if __name__ == "__main__":
     aeff_icecube_full = (
         public_data_aeff["A_eff"].values.reshape(len(sindec_mids), len(emids)).T
     )
-    x = np.arange(0, aeff_icecube_full.shape[1])
-    y = np.arange(0, aeff_icecube_full.shape[0])
-    # mask invalid values
-    array = np.ma.masked_invalid(np.log10(aeff_icecube_full))
-    xx, yy = np.meshgrid(x, y)
-    # get only the valid values
-    x1 = xx[~array.mask]
-    y1 = yy[~array.mask]
-    newarr = array[~array.mask]
-
-    GD1 = griddata((x1, y1), newarr.ravel(), (xx, yy), method="linear")
-    GD1[np.isnan(GD1)] = -7
-
-    interp_aeff = 10**GD1
-    interp_aeff[np.isnan(interp_aeff)] = 0
-    smth_aeff_spl = RectBivariateSpline(x, y, GD1.T, s=20)
-
-    aeff_icecube_full = 10 ** smth_aeff_spl(x, y).T
-    aeff_icecube_full[aeff_icecube_full < 1e-4] = 0
-
     # some event numbers for checking
     aeff_factor = (
         (aeff_icecube_full * sindec_width).T * ewidth * LIVETIME * np.sum(ra_width)
     )
     astro_ev = aeff_factor * (emids / 1e5) ** (-GAMMA_ASTRO) * PHI_ASTRO
     print("icecube (full) astro events:", np.sum(astro_ev))
-    # should be something like 2300 neutrinos for given parameters
-
-    # finer interpolation for further steps
-    rgi = padded_interpolation(
-        aeff_icecube_full, ebins, sindec_bins, method=interpolation_method
-    )
-    ss, em = np.meshgrid(st.sindec_mids, st.emids)
-    aeff_2d = dict()
-    aeff_2d["icecube_full"] = rgi((em, ss))  # np.exp(rgi((em, ss)))
 
     # cut at delta > -5deg
-    min_idx = np.searchsorted(st.sindec_mids, np.sin(np.deg2rad(-5)))
+    min_idx = np.searchsorted(sindec_mids, np.sin(np.deg2rad(-5)))
     print(
-        f"Below {np.rad2deg(np.arcsin(st.sindec_bins[min_idx])):1.2f} deg, A_eff is set to 0"
+        f"Below {np.rad2deg(np.arcsin(sindec_bins[min_idx])):1.2f} deg, A_eff is set to 0"
     )
-    aeff_2d["icecube"] = np.copy(aeff_2d["icecube_full"])
-    aeff_2d["icecube"][:, :min_idx] = 0
+    aeff_icecube_upgoing = np.copy(aeff_icecube_full)
+    aeff_icecube_upgoing[:, :min_idx] = 0
 
-    print("starting aeff rotations")
-    grid2d, eq_coords = setup_aeff_grid(
-        aeff_2d["icecube"], st.sindec_mids, st.ra_mids, st.ra_width, log_int=False
+    # some event numbers for checking
+    aeff_factor = (
+        (aeff_icecube_upgoing * sindec_width).T * ewidth * LIVETIME * np.sum(ra_width)
     )
+    astro_ev = aeff_factor * (emids / 1e5) ** (-GAMMA_ASTRO) * PHI_ASTRO
+    print("icecube (upgoing) astro events:", np.sum(astro_ev))
+
+    # Healpy interpolation and rotation setup
+    nside = 2**8
+    npix = hp.nside2npix(nside)
+    pix = np.arange(npix)
+    hp_angles = hp.pix2ang(nside, pix)
+
+    # binning setup
+    _azi = hp_angles[1]
+    _zen = hp_angles[0] - np.pi / 2
+
+    # for rotation
+    hp_coords = SkyCoord(_azi * u.radian, _zen * u.radian, frame="icrs")
+
+    # for integration
+    pp, tt = np.meshgrid(st.ra_mids, np.arcsin(st.sindec_mids))
+    eq_coords = SkyCoord(pp * u.radian, tt * u.radian, frame="icrs")
+
     aeff_i = {}
     # aeff_i["Plenum-1"] = np.zeros_like(aeff_2d["icecube"]) # should be added via event rate, if at all
-
+    grid2d, _ = setup_aeff_grid(
+        aeff_icecube_upgoing,
+        sindec_mids,
+        st.ra_mids,
+        st.ra_width,
+        local=True,
+        log_int=False,
+    )
     # loop over detectors
-    for k in ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD", "TRIDENT", "HUNT", "NEON"]:
-        aeff_i[k] = aeff_rotation(
+    detectors = [
+        "IceCube",
+        "P-ONE",
+        "KM3NeT",
+        "Baikal-GVD",
+        "TRIDENT",
+        "HUNT",
+        "NEON",
+        "Horizon",
+    ]
+    for k in detectors:
+        aeff_i[k] = earth_rotation(
             poles[k]["lat"],
             poles[k]["lon"],
             eq_coords,
+            hp_coords,
             grid2d,
             ra_width,
             log_aeff=False,
         )
-        # aeff_i["Plenum-1"] += aeff_i[k]
+    # some event numbers for checking
+    aeff_factor = (
+        (aeff_i["IceCube"] * st.sindec_width).T
+        * ewidth
+        * LIVETIME
+        * np.sum(st.ra_width)
+    )
+    astro_ev = aeff_factor * (emids / 1e5) ** (-GAMMA_ASTRO) * PHI_ASTRO
+    print("icecube (after rotation, upgoing) astro events:", np.sum(astro_ev))
 
     ## GEN-2 will have ~7.5x effective area ==> 5times better discovery potential
     aeff_i["Gen-2"] = aeff_i["IceCube"] * GEN2_FACTOR
     aeff_i["TRIDENT"] *= st.TRIDENT_FACTOR
     aeff_i["NEON"] *= st.NEON_FACTOR
     aeff_i["HUNT"] *= st.HUNT_FACTOR
-    ## in plenum-2, IC is replaced by Gen-2
-    # aeff_i["Plenum-2"] = aeff_i["Plenum-1"] - aeff_i["IceCube"] + aeff_i["Gen-2"]
 
     ## save to disc
     savefile = join(BASEPATH, "resources/tabulated_logE_sindec_aeff_upgoing.pckl")
     print("Saving up-going effective areas to", savefile)
     with open(savefile, "wb") as f:
-        pickle.dump((st.logE_bins, st.sindec_bins, aeff_i), f)
+        pickle.dump((log_ebins, st.sindec_bins, aeff_i), f)
 
     # same but wit FULL icecube effective area
     print("starting full effective area calculation...")
-    grid2d, eq_coords = setup_aeff_grid(
-        aeff_2d["icecube_full"], st.sindec_mids, st.ra_mids, st.ra_width, log_int=False
+    grid2d, _ = setup_aeff_grid(
+        aeff_icecube_full,
+        sindec_mids,
+        st.ra_mids,
+        st.ra_width,
+        local=True,
+        log_int=False,
     )
-
     aeff_i_full = {}
     # aeff_i_full["Plenum-1"] = np.zeros_like(aeff_2d["icecube_full"]) # should be added via event rate, if at all
 
     # loop over detectors
-    for k in ["IceCube", "P-ONE", "KM3NeT", "Baikal-GVD", "TRIDENT", "HUNT", "NEON"]:
-        aeff_i_full[k] = aeff_rotation(
+    for k in detectors:
+        aeff_i_full[k] = earth_rotation(
             poles[k]["lat"],
             poles[k]["lon"],
             eq_coords,
+            hp_coords,
             grid2d,
             ra_width,
             log_aeff=False,
         )
-        # aeff_i_full["Plenum-1"] += aeff_i_full[k]
-
+    # some event numbers for checking
+    aeff_factor = (
+        (aeff_i_full["IceCube"] * st.sindec_width).T
+        * ewidth
+        * LIVETIME
+        * np.sum(st.ra_width)
+    )
+    astro_ev = aeff_factor * (emids / 1e5) ** (-GAMMA_ASTRO) * PHI_ASTRO
+    print("icecube (after rotation, full) astro events:", np.sum(astro_ev))
     # GEN-2 will have ~7.5x effective area ==> 5times better discovery potential
     aeff_i_full["Gen-2"] = aeff_i_full["IceCube"] * GEN2_FACTOR
     aeff_i_full["TRIDENT"] *= st.TRIDENT_FACTOR
     aeff_i_full["NEON"] *= st.NEON_FACTOR
     aeff_i_full["HUNT"] *= st.HUNT_FACTOR
-    # aeff_i_full["Plenum-2"] = (
-    #     aeff_i_full["Plenum-1"] - aeff_i_full["IceCube"] + aeff_i_full["Gen-2"]
-    # )
 
     # save
     savefile = join(BASEPATH, "resources/tabulated_logE_sindec_aeff_full.pckl")
     print("Saving full effective areas to", savefile)
     with open(savefile, "wb") as f:
-        pickle.dump((st.logE_bins, st.sindec_bins, aeff_i_full), f)
+        pickle.dump((log_ebins, st.sindec_bins, aeff_i_full), f)
 
     print("finished!")

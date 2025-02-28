@@ -25,19 +25,20 @@ keys = ["upgoing", "full"]
 for hemi in keys:
     aeff_2d_base, logE_bins_old, _, sindec_bins_old = get_aeff_and_binnings(hemi)
 
-    need_to_update_binning = np.any(logE_bins_old != st.logE_bins) or np.any(
-        sindec_bins_old != st.sindec_bins
+    need_to_update_binning = (logE_bins_old[3] != st.logE_bins[3]) or (
+        sindec_bins_old[3] != st.sindec_bins[3]
     )
     if need_to_update_binning:
+        print("Update the binning for a_eff ... new interpolation")
         # provide interpolation function for effective area
         aeff_interp = {}
         for k in aeff_2d_base:
             aeff_interp[k] = padded_interpolation(
-                np.log(aeff_2d_base[k]),
+                aeff_2d_base[k],
                 logE_bins_old,
                 sindec_bins_old,
                 bounds_error=True,
-                method=interpolation_method,
+                method="pchip",  # interpolation_method,
             )
 
     # set up new standardized binning
@@ -50,7 +51,7 @@ for hemi in keys:
         ss, ll = np.meshgrid(st.sindec_mids, st.logE_mids)
     for k in aeff_2d_base:
         if need_to_update_binning:
-            aeff_tmp = np.exp(aeff_interp[k]((ll, ss)))
+            aeff_tmp = aeff_interp[k]((ll, ss))
             aeff_tmp[np.isnan(aeff_tmp)] = 0
 
         aeff_2d[k] = Mephistogram(
