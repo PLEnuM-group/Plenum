@@ -194,6 +194,7 @@ def earth_rotation(
     _ra_width,
     log_aeff=False,
     return_3D=False,
+    time=None,
 ):
     """
     Idea: transform the integration over R.A. per sin(dec) into local coordinates
@@ -206,7 +207,8 @@ def earth_rotation(
     # local detector
     loc = EarthLocation(lat=coord_lat, lon=coord_lon)
     # arbitrary time, doesnt really matter here
-    time = Time("2025-01-01 12:00:00")
+    if time is None:
+        time = Time("2025-01-01 12:00:00")
     # transform integration coordinates to local frame
     local_coords = hp_coords.transform_to(AltAz(obstime=time, location=loc))
     # these local coordinates match the coordinates of the A_eff in grid2d
