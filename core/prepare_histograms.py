@@ -68,7 +68,7 @@ for hemi in keys:
         pickle.dump(aeff_2d, f)
 
     with open(join(st.BASEPATH, f"resources/effective_area_{hemi}.pckl"), "wb") as f:
-        pickle.dump(aeff_2d_hist, f)
+        pickle.dump(((st.sindec_bins, st.logE_bins), aeff_2d_hist), f)
 
 # atmospheric neutrino background
 # Calculation can be found in `atmospheric_background.py`

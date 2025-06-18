@@ -114,7 +114,7 @@ def read_smearing_matrix():
 
     public_data_df = read_table(
         join(BASEPATH, "resources/IC86_II_smearing.csv"),
-        delim_whitespace=True,
+        sep="\s+",
         skiprows=1,
         names=column_names,
     )

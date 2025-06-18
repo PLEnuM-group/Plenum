@@ -244,6 +244,8 @@ def earth_rotation(
 
 def aeff_rotation(coord_lat, coord_lon, eq_coords, grid2d, ra_width, log_aeff=False):
     """
+    ### OLD !!! ### see above (earth_rotation) for new version.
+
     Idea: transform the integration over R.A. per sin(dec) into local coordinates
 
     Disclaimer: the local coordinate trafo will not 100%-accurately recover
@@ -329,6 +331,25 @@ def padded_interpolation(array, *bins, **rgi_kwargs):
     )
 
 
+def setup_coordinates(nside=2**8, ra_mids=st.ra_mids, sindec_mids=st.sindec_mids):
+    # Healpy interpolation and rotation setup
+    npix = hp.nside2npix(nside)
+    pix = np.arange(npix)
+    hp_angles = hp.pix2ang(nside, pix)
+
+    # binning setup
+    _azi = hp_angles[1]
+    _zen = hp_angles[0] - np.pi / 2
+
+    # for rotation
+    hp_coords = SkyCoord(_azi * u.radian, _zen * u.radian, frame="icrs")
+
+    # for integration
+    pp, tt = np.meshgrid(ra_mids, np.arcsin(sindec_mids))
+    eq_coords = SkyCoord(pp * u.radian, tt * u.radian, frame="icrs")
+    return hp_coords, eq_coords
+
+
 if __name__ == "__main__":
     # get all info from data release first
     public_data_aeff = read_effective_area()
@@ -377,23 +398,6 @@ if __name__ == "__main__":
     astro_ev = aeff_factor * (emids / 1e5) ** (-GAMMA_ASTRO) * PHI_ASTRO
     print("icecube (upgoing) astro events:", np.sum(astro_ev))
 
-    # Healpy interpolation and rotation setup
-    nside = 2**8
-    npix = hp.nside2npix(nside)
-    pix = np.arange(npix)
-    hp_angles = hp.pix2ang(nside, pix)
-
-    # binning setup
-    _azi = hp_angles[1]
-    _zen = hp_angles[0] - np.pi / 2
-
-    # for rotation
-    hp_coords = SkyCoord(_azi * u.radian, _zen * u.radian, frame="icrs")
-
-    # for integration
-    pp, tt = np.meshgrid(st.ra_mids, np.arcsin(st.sindec_mids))
-    eq_coords = SkyCoord(pp * u.radian, tt * u.radian, frame="icrs")
-
     aeff_i = {}
     # aeff_i["Plenum-1"] = np.zeros_like(aeff_2d["icecube"]) # should be added via event rate, if at all
     grid2d, _ = setup_aeff_grid(
@@ -404,6 +408,8 @@ if __name__ == "__main__":
         local=True,
         log_int=False,
     )
+    hp_coords, eq_coords = setup_coordinates()
+
     # loop over detectors
     detectors = [
         "IceCube",

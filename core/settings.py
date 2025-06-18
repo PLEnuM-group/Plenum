@@ -197,7 +197,7 @@ detector_configurations = {
 # coordinates of detectors on globe
 poles = {
     "IceCube": {
-        "lon": 1 * u.deg,
+        "lon": 1 * u.deg,  # degenerate longitude
         "lat": -90 * u.deg,
         "color": "k",
         "ls": "-",
@@ -213,7 +213,7 @@ poles = {
         "marker": "d",
     },
     "Gen-2": {
-        "lon": 1 * u.deg,
+        "lon": 1 * u.deg,  # degenerate longitude
         "lat": -90 * u.deg,
         "color": "gray",
         "ls": "-.",
