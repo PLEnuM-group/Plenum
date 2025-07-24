@@ -126,6 +126,14 @@ ecap_cmap = sns.cubehelix_palette(
     as_cmap=True,
     reverse=True,
 )
+ecap_cmap_r = sns.cubehelix_palette(
+    start=(149 - 256) / 256 * 3 + 1,
+    rot=0,
+    light=1,
+    dark=0.2,
+    hue=1,
+    as_cmap=True,
+)
 from matplotlib.colors import ListedColormap
 
 ecap_listed_cmap = ListedColormap(
