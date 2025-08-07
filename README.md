@@ -1,10 +1,11 @@
 # PLEnuM
 This repository contains code that aims to 
 show the potential of a PLanEtary NeUtrino Monitoring network.
-First studies are published as part of the ICRC2021 proceedings which 
-you can find at https://pos.sissa.it/395/1185/.
+First studies are published as part of the ICRC2021 and ICRC2023 proceedings which 
+you can find at https://pos.sissa.it/395/1185/ and https://pos.sissa.it/444/991.
 Potential analyses as presented in the proceeding are illustrated in Jupyter notebooks.
 See also the proceedings for important references.
+The first full publication on the prospects of detecting and characterizing point sources is available at https://arxiv.org/abs/2503.07549 (publication currently under review at PRD).
 
 ## Basics
 The basic assumption of this study is currently that all new telescopes 
