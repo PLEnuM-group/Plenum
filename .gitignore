@@ -30,3 +30,5 @@ resources/ngc_spectral_disc_pot_KM3NeT-only-short_erc.pickle
 resources/ngc_spectral_disc_pot_KM3NeT-short_erc.pickle
 notebooks/analysis/presentation.pdf
 notebooks/analysis/matplotlibrc
+notebooks/sandbox
+notebooks/sandbox/*
