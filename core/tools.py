@@ -1,53 +1,286 @@
-# This file contains a selection of functions that are used within 
+# This file contains a selection of functions that are used within
 # the Plenum notebooks
 import numpy as np
+from pathlib import Path
+from matplotlib.ticker import NullLocator
+import matplotlib.colors as mc
+from astropy import units as u
+from astropy.coordinates import SkyCoord
+from scipy.stats import norm
+from scipy.interpolate import UnivariateSpline
+from pandas import read_table
+from os.path import join
+
+# get the baseline path of this project
+tmp_path = str(Path(__file__).parent.resolve())
+BASEPATH = "/".join(tmp_path.split("/")[:-1])
+
 try:
     import healpy as hp
 except:
     print("Could not import healpy.")
     print("functions plot_area, add_catalog, and add_extended_plane will not work.")
-from matplotlib.ticker import (AutoMinorLocator, FixedLocator, FuncFormatter,
-                               MultipleLocator, NullLocator, LogLocator)
 
-from astropy import units as u
-from astropy.coordinates import SkyCoord
-from scipy.stats import norm 
+try:
+    import colorsys
+except:
+    colorsys = None
 
+
+def scaling_estimation(
+    df, current_thresholds, scaler, nmax=20, min_steps=1, stop_here=0.1, stepper=1.5
+):
+    """Estimate the best flux scaling factor to reach the current
+    p-value threshold based on interpolating the recent tests with
+    different scaling factors"""
+
+    # First, check that the last pval we put into the df is reasonable
+    # if it's nan, the scaling factor was too large
+    if np.isnan(df.iloc[-1]["log10(p)"]) or (df.iloc[-1]["pval"] > 0.99):
+        return scaler * stepper * 0.9
+    # if it's infinite, the scaling factor was too small
+    if not np.isfinite(df.iloc[-1]["log10(p)"]):
+        return scaler / stepper
+
+    # start with sampling min_steps values to estimate the scaling factor
+    if len(df) <= min_steps:
+        scaler_new = scaler / stepper
+        return scaler_new
+
+    # check if we already sampled close enough to the threshold
+    if abs(df.iloc[-1]["log10(p)"] + np.log10(current_thresholds[0])) < stop_here:
+        # when we found one pval close to the threshold,
+        # pick the next threshold
+        _ = current_thresholds.pop(0)
+        if len(current_thresholds) == 0:
+            return -1
+
+    # do the interpolation
+    # pick the first threshold from the list
+    scaler_new = get_scaler(df, current_thresholds[0])
+
+    if scaler_new <= 0 or np.isnan(scaler_new):
+        # in case something went wrong
+        # some random value to get started again
+        print("scaling went wrong:", scaler_new)
+        scaler_new = np.random.uniform(1.5, 3.5) / df.iloc[-1]["SosB"]
+
+    # break the optimization loop once we reached nmax
+    if len(df) == nmax:
+        print(
+            "Optimization failed! Diff is:",
+            df.iloc[-1]["log10(p)"] + np.log10(current_thresholds[0]),
+            "thresh is:",
+            current_thresholds[0],
+        )
+        _ = current_thresholds.pop(0)
+    return scaler_new
+
+
+def read_effective_area():
+    column_names = [
+        "logE_nu_min",
+        "logE_nu_max",
+        "Dec_nu_min",
+        "Dec_nu_max",
+        "A_eff",
+    ]
+
+    public_data_aeff = read_table(
+        join(BASEPATH, "resources/IC86_II_effectiveArea.csv"),
+        delim_whitespace=True,
+        skiprows=1,
+        names=column_names,
+    )
+    return public_data_aeff
+
+
+def read_smearing_matrix():
+    """Read the public-data smearing matrix into a data frame."""
+
+    column_names = [
+        "logE_nu_min",
+        "logE_nu_max",
+        "Dec_nu_min",
+        "Dec_nu_max",
+        "logE_reco_min",
+        "logE_reco_max",
+        "PSF_min",
+        "PSF_max",
+        "AngErr_min",
+        "AngErr_max",
+        "Fractional_Counts",
+    ]
+
+    public_data_df = read_table(
+        join(BASEPATH, "resources/IC86_II_smearing.csv"),
+        sep="\s+",
+        skiprows=1,
+        names=column_names,
+    )
+    return public_data_df
+
+
+def get_scaler(x, thresh, key_x="log10(p)", key_y="scaler"):
+    """Powerlaw interpolation wrapper using a pandas.DataFrame input.
+    It takes x as the DataFrame, key_x/key_y as x and y coordinates to evaluate the DF.
+    Next, log10 of x and y is calculated such that a linear 'ax + b' polynomial fit can be applied.
+    The polynomial is then evaluated at -log10(thresh), then translated back to the original form (10**...).
+
+    Originally, this was used to calculate the threshold for discovery by interpolation.
+    That's why it looks this complicated.
+    """
+    # only use finite values
+    mask = np.isfinite(x[key_x]) & (x[key_x] > 0)
+    if np.sum(~mask) > 10:
+        raise ValueError(f"Too many non-finite values: {x[key_x]}")
+
+    return np.power(
+        10,
+        np.poly1d(
+            np.polyfit(np.log10(x.loc[mask, key_x]), np.log10(x.loc[mask, key_y]), 1)
+        )(np.log10(-np.log10(thresh))),
+    )
+
+
+def array_source_interp(dec, array, sindec_mids, axis=0):
+    """Select a slice of an array with sindec coordinates that matches the chosen dec.
+
+    Parameters:
+    -----------
+    dec: declination value between -np.pi/2 and +np.pi/2
+
+    array: 2D array where one axis is the sindec axis which we want to slice out
+
+    sindec_mids: sindec coordinates of one axis of the array
+
+    axis: optional, default=0
+        Indicates which axis is the sindec axis.
+        If not given, it will assume it's axis 0.
+
+    """
+    # Find the correct bin of sindec where dec is in
+    low_ind = np.digitize(np.sin(dec), sindec_mids)
+
+    # Check which dimension of the array we need to pick out
+    # axis 0 is the standard, transpose if it's axis 1
+    if axis == 1:
+        if isinstance(array, np.ndarray):
+            array = array.T
+        else:
+            array = array.T()
+
+    if low_ind >= len(sindec_mids):
+        # print("end of range")
+        array_interp = array[:, -1]
+    elif low_ind <= 0:
+        # print("low end range")
+        array_interp = array[:, low_ind]
+    else:
+        # interpolate the array values within the bin boundaries
+        array_interp = np.zeros(len(array))
+        for i in range(len(array)):
+            array_interp[i] = np.interp(
+                np.sin(dec),
+                [sindec_mids[low_ind - 1], sindec_mids[low_ind]],
+                [array[i, low_ind - 1], array[i, low_ind]],
+            )
+    return array_interp
+
+
+def sort_contour(xvals, yvals):
+    """Take the coordinates of a closed contour and sort them properly for plotting"""
+    # center around (0, 0)
+    x_cms = np.mean(xvals)
+    y_cms = np.mean(yvals)
+    # calculate the angle for sorting
+    angles = np.arctan2(yvals - y_cms, xvals - x_cms)
+    # sorting indices by angle
+    indx = np.argsort(angles)
+    # get the sorted coordinates
+    xsorted = xvals[indx]
+    ysorted = yvals[indx]
+    # close the contour
+    xsorted = np.concatenate([xsorted, [xsorted[0]]])
+    ysorted = np.concatenate([ysorted, [ysorted[0]]])
+    return xsorted, ysorted
 
 
 def sigma2pval(sigma, one_sided=True):
+    """Translate a sigma value to a p-value, one_sided or two_sided"""
     if one_sided:
         return norm.sf(sigma)
-    else: 
-        return 1.-(norm.cdf(sigma)-norm.cdf(-sigma))
+    else:
+        return 1.0 - (norm.cdf(sigma) - norm.cdf(-sigma))
 
 def get_mids(bins, ext=False):
+    """Calculate the bin mids from an array of bin edges."""
     res = (bins[1:] + bins[:-1]) * 0.5
-    if ext==False:
+    if ext == False:
         return res
     else:
         res[0], res[-1] = bins[0], bins[-1]
         return res
 
+
 # angular distance between two points on a skymap
 def ang_dist(src_ra, src_dec, ra, dec):
+    """Calculate the angular distance between a source/sources and a set of angular coordinates"""
     # convert src_ra, dec to numpy arrays if not already done
     src_ra = np.atleast_1d(src_ra)[:, np.newaxis]
     src_dec = np.atleast_1d(src_dec)[:, np.newaxis]
 
-    cos_ev = np.sqrt(1. - np.sin(dec)**2)
+    cos_ev = np.sqrt(1.0 - np.sin(dec) ** 2)
 
-    cosDist = (
-        np.cos(src_ra - ra) * np.cos(src_dec) * cos_ev +
-        np.sin(src_dec) * np.sin(dec)
-        )
+    cosDist = np.cos(src_ra - ra) * np.cos(src_dec) * cos_ev + np.sin(src_dec) * np.sin(
+        dec
+    )
 
     # handle possible floating precision errors
-    cosDist[np.isclose(cosDist, -1.) & (cosDist < -1)] = -1.
-    cosDist[np.isclose(cosDist, 1.) & (cosDist > 1)] = 1.
+    cosDist[np.isclose(cosDist, -1.0) & (cosDist < -1)] = -1.0
+    cosDist[np.isclose(cosDist, 1.0) & (cosDist > 1)] = 1.0
     dist = np.arccos(cosDist)
-    
+
     return dist
+
+
+def interpolate_quantile_value(q, xedges, yvals):
+    r"""Interpolate quantile values from a histogram.
+
+    Parameters:
+    -----------
+    q: quantile, float between 0 and 1
+    xedges: bin edges of the histogram with length n+1
+    yvals: heights of the bins with length n
+
+    Returns:
+    --------
+    Quantile value based on interpolated histogram values,
+    """
+    cumulative_yvals = np.cumsum(yvals).astype(float)
+    cumulative_yvals /= cumulative_yvals[-1]
+
+    mids = (xedges[:-1] + xedges[1:]) * 0.5
+    mask_s = cumulative_yvals <= q
+    mask_l = cumulative_yvals > q
+    try:
+        x1 = np.atleast_1d(mids[mask_s])[-1]
+        x2 = np.atleast_1d(mids[mask_l])[0]
+        y1 = np.atleast_1d(cumulative_yvals[mask_s])[-1]
+        y2 = np.atleast_1d(cumulative_yvals[mask_l])[0]
+    except:
+        # this means the quantile is either in the lowest or the highest bin
+        if np.count_nonzero(mask_s) == 0:
+            print("Quantile is in lowest bin")
+            return xedges[0]
+        elif np.count_nonzero(mask_l) == 0:
+            print("Quantile is in highest bin")
+            return xedges[1:][yvals > 0][-1]
+        else:
+            print("Something weird happened??? Please check")
+            return None
+    return np.interp(q, [y1, y2], [x1, x2])
+
 
 def getAngDist(ra1, dec1, ra2, dec2):
     """
@@ -70,27 +303,40 @@ def getAngDist(ra1, dec1, ra2, dec2):
         The angular distance in DEGREES between the first
         and second coordinate in the sky.
 
-    """  
+    """
 
-    delt_lon = (ra1 - ra2)*np.pi/180.
-    delt_lat = (dec1 - dec2)*np.pi/180.
+    delt_lon = (ra1 - ra2) * np.pi / 180.0
+    delt_lat = (dec1 - dec2) * np.pi / 180.0
     # Haversine formula
-    dist = 2.0*np.arcsin( np.sqrt( np.sin(delt_lat/2.0)**2 + \
-         np.cos(dec1*np.pi/180.)*np.cos(dec2*np.pi/180.)*np.sin(delt_lon/2.0)**2 ) )  
+    dist = 2.0 * np.arcsin(
+        np.sqrt(
+            np.sin(delt_lat / 2.0) ** 2
+            + np.cos(dec1 * np.pi / 180.0)
+            * np.cos(dec2 * np.pi / 180.0)
+            * np.sin(delt_lon / 2.0) ** 2
+        )
+    )
 
-    return dist/np.pi*180.
+    return dist / np.pi * 180.0
 
 
-#convert ra, dec error to ungular uncertainty (this is just an approximation)
+# convert ra, dec error to ungular uncertainty (this is just an approximation)
 def conv2ang_uncertainty(ra_err, dec_err, dec):
-    err = np.sqrt(dec_err**2 + (np.cos(np.radians(dec)) * ra_err)**2) / np.sqrt(2.)
+    err = np.sqrt(dec_err**2 + (np.cos(np.radians(dec)) * ra_err) ** 2) / np.sqrt(2.0)
     return err
 
 
 # plot an area on a skymap, vals contain the values of all pixels
-def plot_area(vals, ax, npix=768, colorbar=dict(cmap='viridis'), masked=True, 
-        galactic=False,**kwargs):
-    r""" Plot a 2dim function on the map using pcolormesh
+def plot_area(
+    vals,
+    ax,
+    npix=768,
+    colorbar=dict(cmap="viridis"),
+    masked=True,
+    galactic=False,
+    **kwargs,
+):
+    r"""Plot a 2dim function on the map using pcolormesh
 
     Parameters
     ----------
@@ -104,7 +350,7 @@ def plot_area(vals, ax, npix=768, colorbar=dict(cmap='viridis'), masked=True,
 
     # create a xy grid of both angles
     x = np.linspace(-np.pi, np.pi, npix)
-    y = np.linspace( 0, np.pi, npix // 2)
+    y = np.linspace(0, np.pi, npix // 2)
     X, Y = np.meshgrid(x, y)
 
     YY, XX = Y.ravel(), X.ravel()
@@ -112,21 +358,19 @@ def plot_area(vals, ax, npix=768, colorbar=dict(cmap='viridis'), masked=True,
     # get the pixel number for each point on the xy grid
     pix = hp.ang2pix(hp.npix2nside(len(vals)), YY, XX)
 
-    # select the respective pixel value for each 
+    # select the respective pixel value for each
     # xy point and reshape to the grid shape
     Z = np.reshape(vals[pix], X.shape)
     kwargs.setdefault("shading", "gouraud")
 
-
     # shifr declination to values from -90 to 90 degrees
     lon = np.linspace(-np.pi, np.pi, len(x))
-    lat = np.linspace(-np.pi/2., np.pi/2., len(y))
+    lat = np.linspace(-np.pi / 2.0, np.pi / 2.0, len(y))
     if galactic:
         lon = lon[::-1]
 
-
     if masked == True:
-        Z[Z==0] = 1.e-10
+        Z[Z == 0] = 1.0e-10
     Z_masked = np.ma.masked_where(Z == 0, Z)
 
     mesh = ax.pcolormesh(lon, lat, Z_masked, **kwargs)
@@ -140,6 +384,7 @@ def rotate(ra1, dec1, ra2, dec2, ra3, dec3):
     The rotation is performed on (ra3, dec3).
 
     """
+
     def cross_matrix(x):
         r"""Calculate cross product matrix
 
@@ -157,24 +402,25 @@ def rotate(ra1, dec1, ra2, dec2, ra3, dec3):
     ra3 = np.atleast_1d(ra3)
     dec3 = np.atleast_1d(dec3)
 
-    cos_alpha = np.cos(ra2 - ra1) * np.cos(dec1) * np.cos(dec2) \
-                  + np.sin(dec1) * np.sin(dec2)
+    cos_alpha = np.cos(ra2 - ra1) * np.cos(dec1) * np.cos(dec2) + np.sin(dec1) * np.sin(
+        dec2
+    )
 
     # correct rounding errors
-    cos_alpha[cos_alpha >  1] =  1
+    cos_alpha[cos_alpha > 1] = 1
     cos_alpha[cos_alpha < -1] = -1
 
     alpha = np.arccos(cos_alpha)
-    vec1 = np.vstack([np.cos(ra1) * np.cos(dec1),
-                      np.sin(ra1) * np.cos(dec1),
-                      np.sin(dec1)]).T
-    vec2 = np.vstack([np.cos(ra2) * np.cos(dec2),
-                      np.sin(ra2) * np.cos(dec2),
-                      np.sin(dec2)]).T
+    vec1 = np.vstack(
+        [np.cos(ra1) * np.cos(dec1), np.sin(ra1) * np.cos(dec1), np.sin(dec1)]
+    ).T
+    vec2 = np.vstack(
+        [np.cos(ra2) * np.cos(dec2), np.sin(ra2) * np.cos(dec2), np.sin(dec2)]
+    ).T
 
-    vec3 = np.vstack([np.cos(ra3) * np.cos(dec3),
-                      np.sin(ra3) * np.cos(dec3),
-                      np.sin(dec3)]).T
+    vec3 = np.vstack(
+        [np.cos(ra3) * np.cos(dec3), np.sin(ra3) * np.cos(dec3), np.sin(dec3)]
+    ).T
 
     nvec = np.cross(vec1, vec2)
     norm = np.sqrt(np.sum(nvec**2, axis=1))
@@ -184,40 +430,53 @@ def rotate(ra1, dec1, ra2, dec2, ra3, dec3):
     nTn = np.array([np.outer(nv, nv) for nv in nvec])
     nx = np.array([cross_matrix(nv) for nv in nvec])
 
-    R = np.array([(1.-np.cos(a)) * nTn_i + np.cos(a) * one + np.sin(a) * nx_i
-                  for a, nTn_i, nx_i in zip(alpha, nTn, nx)])
+    R = np.array(
+        [
+            (1.0 - np.cos(a)) * nTn_i + np.cos(a) * one + np.sin(a) * nx_i
+            for a, nTn_i, nx_i in zip(alpha, nTn, nx)
+        ]
+    )
 
-    vec = np.array([np.dot(R[0], vec_i.T) for vec_i in vec3])    
+    vec = np.array([np.dot(R[0], vec_i.T) for vec_i in vec3])
 
     ra = np.arctan2(vec[:, 1], vec[:, 0])
     dec = np.arcsin(vec[:, 2])
 
-    ra += np.where(ra < 0., 2. * np.pi, 0.)
+    ra += np.where(ra < 0.0, 2.0 * np.pi, 0.0)
 
     return ra, dec
 
 
 def set_ticks(ax, fs=20, galactic=False):
-    xnames=(r"24h", r"0h")
+    xnames = (r"24h", r"0h")
     if galactic:
-        xnames = (r'180$^{\circ}$', r'-180$^{\circ}$')
+        xnames = (r"180$^{\circ}$", r"-180$^{\circ}$")
 
-    xticks=np.linspace(-180., 180., 7)
+    xticks = np.linspace(-180.0, 180.0, 7)
 
     if hasattr(ax, "set_longitude_grid_ends"):
-        ax.set_longitude_grid_ends(85.)
+        ax.set_longitude_grid_ends(85.0)
         # create labels and grid
         ax.xaxis.set_major_locator(NullLocator())
-        xmargin = np.pi/80.
-        ax.text(-np.pi - xmargin, 0.,
-                         r" {0:s}".format(xnames[0]), size=fs,#"large",
-                         weight="semibold", horizontalalignment="right",
-                         verticalalignment="center")
-        ax.text(np.pi + xmargin, 0.,
-                         r" {0:s}".format(xnames[1]), size=fs,#"large",
-                         weight="semibold",
-                         horizontalalignment="left",
-                         verticalalignment="center")
+        xmargin = np.pi / 80.0
+        ax.text(
+            -np.pi - xmargin,
+            0.0,
+            r" {0:s}".format(xnames[0]),
+            size=fs,  # "large",
+            weight="semibold",
+            horizontalalignment="right",
+            verticalalignment="center",
+        )
+        ax.text(
+            np.pi + xmargin,
+            0.0,
+            r" {0:s}".format(xnames[1]),
+            size=fs,  # "large",
+            weight="semibold",
+            horizontalalignment="left",
+            verticalalignment="center",
+        )
 
         yticks = ax.yaxis.get_major_ticks()
         yticks[5].label1.set_visible(False)
@@ -227,61 +486,60 @@ def set_ticks(ax, fs=20, galactic=False):
 
 
 # function to add event with angular uncertainty to a skymap
-def add_event(ax, ra_i, dec_i, sigma_i, coords='ra', **kwargs):
+def add_event(ax, ra_i, dec_i, sigma_i, coords="ra", **kwargs):
 
-    if abs(dec_i) > np.radians(70): ext = 20.
-    elif abs(dec_i) > np.radians(30): ext = 10.
-    else: ext = 3.
+    if abs(dec_i) > np.radians(70):
+        ext = 20.0
+    elif abs(dec_i) > np.radians(30):
+        ext = 10.0
+    else:
+        ext = 3.0
 
     val = ext * np.degrees(sigma_i)
 
     n = 200
-    #get all points on the map for which the angular distance is euqal the 1 sigma level
-    ra_bins = np.linspace(np.degrees(ra_i)-val, np.degrees(ra_i)+val, num=n)
-    dec_bins = np.linspace(np.degrees(dec_i)-val, np.degrees(dec_i)+val, num=n)
-    xx, yy =np.meshgrid(ra_bins, dec_bins, indexing='ij')
+    # get all points on the map for which the angular distance is euqal the 1 sigma level
+    ra_bins = np.linspace(np.degrees(ra_i) - val, np.degrees(ra_i) + val, num=n)
+    dec_bins = np.linspace(np.degrees(dec_i) - val, np.degrees(dec_i) + val, num=n)
+    xx, yy = np.meshgrid(ra_bins, dec_bins, indexing="ij")
 
-    DIST = getAngDist(
-        xx, yy, np.rad2deg(ra_i), np.rad2deg(dec_i)
-    ) - np.rad2deg(sigma_i)
+    DIST = getAngDist(xx, yy, np.rad2deg(ra_i), np.rad2deg(dec_i)) - np.rad2deg(sigma_i)
 
-    c = kwargs.pop('color', 'black')
+    c = kwargs.pop("color", "black")
     d = np.zeros_like(DIST)
-    d[DIST==0.] = 1
+    d[DIST == 0.0] = 1
 
-    if coords=='ra':
-        xx,yy=  _trans(np.radians(xx), np.radians(yy))
-        ra_i, dec_i = _trans(ra_i,dec_i)
+    if coords == "ra":
+        xx, yy = _trans(np.radians(xx), np.radians(yy))
+        ra_i, dec_i = _trans(ra_i, dec_i)
 
-    res = ax.contour(xx, yy, DIST, levels=[ 0.], colors = c,
-                       alpha=0.8, **kwargs)
+    res = ax.contour(xx, yy, DIST, levels=[0.0], colors=c, alpha=0.8, **kwargs)
     return res
 
 
-def add_catalog(ax, cat, n, key='sign_avg', tck=None, vals=None, 
-                **kwargs):
+def add_catalog(ax, cat, n, key="sign_avg", tck=None, vals=None, **kwargs):
     m = cat[key] >= 0
-    mb2 = np.abs(cat['Glat']) > 10.
-    cat =cat[m&mb2]
+    mb2 = np.abs(cat["Glat"]) > 10.0
+    cat = cat[m & mb2]
     ind = np.argsort(cat[key])[-n:]
 
-    _ra = np.radians(cat[ind]['ra'])
-    _dec = np.radians(cat[ind]['dec'])
+    _ra = np.radians(cat[ind]["ra"])
+    _dec = np.radians(cat[ind]["dec"])
 
     _ra, _dec = _trans(_ra, _dec)
 
     if vals is not None:
-        ind = hp.ang2pix(hp.npix2nside(len(vals)),  _dec+np.pi/2., _ra)
+        ind = hp.ang2pix(hp.npix2nside(len(vals)), _dec + np.pi / 2.0, _ra)
         alphas = vals[ind]
-        label = kwargs.pop('label', None)
-        n=0
+        label = kwargs.pop("label", None)
+        n = 0
         for i, deci in enumerate(_dec):
 
             alpha = alphas[i] / np.max(alphas)
-            kwargs['alpha'] =  alpha
-            if alphas[i] == np.max(alphas) and n==0:
-                ax.scatter(_ra[i], deci, label=label,**kwargs)
-                n+=1
+            kwargs["alpha"] = alpha
+            if alphas[i] == np.max(alphas) and n == 0:
+                ax.scatter(_ra[i], deci, label=label, **kwargs)
+                n += 1
             else:
                 ax.scatter(_ra[i], deci, **kwargs)
         return
@@ -289,44 +547,52 @@ def add_catalog(ax, cat, n, key='sign_avg', tck=None, vals=None,
     ax.scatter(_ra, _dec, **kwargs)
     return
 
+
 def _trans(ra, dec):
-    r''' Transform ra and dec such that they can be plotted on a hammer skymap
+    r"""Transform ra and dec such that they can be plotted on a hammer skymap
     0h right side, 24h left side
-    '''
+    """
     try:
-        x, y = np.pi*u.rad - np.atleast_1d(ra), np.atleast_1d(dec)
+        x, y = np.pi * u.rad - np.atleast_1d(ra), np.atleast_1d(dec)
     except:
-        x, y = np.pi-np.atleast_1d(ra), np.atleast_1d(dec)
+        x, y = np.pi - np.atleast_1d(ra), np.atleast_1d(dec)
 
     return x, y
 
 
-def add_plane(ax, coords='ra', color='black', label='Galactic center/plane', **kwargs):
+def add_plane(ax, coords="ra", color="black", label="Galactic center/plane", **kwargs):
     in_deg = True if "transform" in kwargs else False
 
-    c = SkyCoord(frame="galactic", l=0., b=0., unit='deg')
-    gc = SkyCoord(l=0*u.degree, b=0*u.degree, frame='galactic')
-    if coords=='ra':
+    gc = SkyCoord(l=0 * u.degree, b=0 * u.degree, frame="galactic")
+    if coords == "ra":
         cra, cdec = _trans(gc.fk5.ra, gc.fk5.dec)
     else:
         cra, cdec = gc.fk5.ra, gc.fk5.dec
-        
+
     if in_deg:
         cra, cdec = cra.deg, cdec.deg
     else:
         cra, cdec = cra.rad, cdec.rad
-        
+    ls = kwargs.pop("ls", "dotted")
+    lw = kwargs.pop("lw", 3)
+    alpha = kwargs.pop("alpha", 0.8)
     ax.plot(
-        cra, cdec, marker='o',
-        ms=15, c=color, linestyle='dotted', 
-        label=label, alpha=0.8, **kwargs
+        cra,
+        cdec,
+        marker="o",
+        ms=15,
+        c=color,
+        linestyle=ls,
+        label=label,
+        alpha=alpha,
+        **kwargs,
     )
 
     num2 = 150
     gc = SkyCoord(
-        l=np.linspace(-np.pi, np.pi, num2)*u.rad, b=0*u.rad, frame='galactic'
+        l=np.linspace(-np.pi, np.pi, num2) * u.rad, b=0 * u.rad, frame="galactic"
     )
-    if coords=='ra':
+    if coords == "ra":
         cra, cdec = _trans(gc.icrs.ra, gc.icrs.dec)
     else:
         cra, cdec = gc.icrs.ra, gc.icrs.dec
@@ -337,13 +603,21 @@ def add_plane(ax, coords='ra', color='black', label='Galactic center/plane', **k
         cra, cdec = cra.deg, cdec.deg
     else:
         cra, cdec = cra.rad, cdec.rad
-    ax.plot(cra, cdec, marker='None', c=color, 
-       linestyle='dotted', linewidth=3, **kwargs)
+    ax.plot(
+        cra,
+        cdec,
+        marker="None",
+        c=color,
+        alpha=alpha,
+        linestyle=ls,
+        linewidth=lw,
+        **kwargs,
+    )
     return
 
 
-def add_obj(ax, name, coords='ra', marker='o', c='red', **kwargs):
-    
+def add_obj(ax, name, coords="ra", marker="o", c="red", label_as_text=True, **kwargs):
+
     ras = {
         "txs": np.radians(77.36),
         "ngc": np.radians(40.67),
@@ -352,70 +626,124 @@ def add_obj(ax, name, coords='ra', marker='o', c='red', **kwargs):
         "txs": np.radians(5.69),
         "ngc": np.radians(-0.01),
     }
-    labels = {
-        "txs": 'TXS 0506+056',
-        "ngc": 'NGC 1068'
-    }
-    
-    if coords=='ra':
+    labels = {"txs": "TXS 0506+056", "ngc": "NGC 1068"}
+
+    if coords == "ra":
         _ra, _dec = _trans(ras[name], decs[name])
     else:
         _ra, _dec = ras[name], decs[name]
     if "transform" in kwargs:
         _ra, _dec = np.rad2deg(_ra), np.rad2deg(_dec)
-        
+    _label = kwargs.pop("label", labels[name])
     ax.plot(
-        _ra, _dec, marker=marker, ms=15, c=c,
-        linestyle='None', 
-        label=kwargs.pop("label", labels[name]),
-        **kwargs
+        _ra, _dec, marker=marker, ms=15, c=c, linestyle="None", label=_label, **kwargs
     )
-
+    if label_as_text:
+        ax.text(
+            _ra,
+            _dec,
+            s=_label,
+            fontsize=20,
+            bbox=dict(boxstyle="round", fc="w", linewidth=2),
+            transform=kwargs.pop("transform", None),
+        )
     return
 
-def add_extended_plane(ax, color='black', ngrid=500, **kwargs):
+
+def add_src(ax, src, label, coords="ra", dec_line=False, marker="o", c="red", **kwargs):
+
+    if coords == "ra":
+        # change coordinates for skymap plotting
+        _ra, _dec = _trans(src.ra.rad, src.dec.rad)
+    else:
+        _ra, _dec = src.ra.rad, src.dec.rad
+    if "transform" in kwargs:
+        _ra, _dec = np.rad2deg(_ra), np.rad2deg(_dec)
+
+    ax.plot(
+        _ra, _dec, marker=marker, ms=15, c=c, linestyle="None", label=label, **kwargs
+    )
+    if dec_line:
+        rr = np.linspace(0, np.pi * 2)
+        ax.plot(np.pi - rr, np.full_like(rr, _dec), c=c, ls="-", **kwargs)
+    return
+
+
+def add_extended_plane(ax, color="black", ngrid=500, **kwargs):
     NSIDE = 2**6
     npix = hp.nside2npix(NSIDE)
 
-    #add also the lowest and upper line
+    # add also the lowest and upper line
     evals = dict()
-    for blat in [-10., 10]:
+    for blat in [-10.0, 10]:
         num2 = 500
         gp_ra = np.zeros(num2)
         gp_dec = np.zeros(num2)
-        for i,x_i in enumerate(np.linspace(0,359,num2)):
-            gc = SkyCoord(l=x_i*u.degree, b=blat*u.degree, frame='galactic')
-            _gp= gc.fk5
+        for i, x_i in enumerate(np.linspace(0, 359, num2)):
+            gc = SkyCoord(l=x_i * u.degree, b=blat * u.degree, frame="galactic")
+            _gp = gc.fk5
             gp_ra[i] = _gp.ra.rad
             gp_dec[i] = _gp.dec.rad
 
+        cra, cdec = _trans(gp_ra, gp_dec)
 
-        cra ,cdec = _trans(gp_ra, gp_dec) 
-
-        _args = np.argsort(cra)  
+        _args = np.argsort(cra)
         spl = UnivariateSpline(cra[_args], cdec[_args], s=1e-4)
         evals[blat] = spl
 
     fit_vals = np.linspace(-np.pi, np.pi, 100)
-    ax.fill_between(fit_vals, evals[-10.](fit_vals), evals[10.](fit_vals), color='red', 
-                    alpha=0.5) 
+    ax.fill_between(
+        fit_vals, evals[-10.0](fit_vals), evals[10.0](fit_vals), color="red", alpha=0.5
+    )
 
     return True
 
 
-def shade_sky(ax, sky='all', **kwargs):    
+def shade_sky(ax, sky="all", **kwargs):
     fit_vals = np.linspace(-np.pi, np.pi, 500)
-    if sky == 'all':
-        ymin = -np.pi / 2*np.ones_like(fit_vals)
-        ymax = np.pi / 2*np.ones_like(fit_vals)
-    elif sky == 'north':
-        ymin = np.radians(-5.)*np.ones_like(fit_vals)
-        ymax = np.pi / 2*np.ones_like(fit_vals)
-    elif sky == 'south':
-        ymin = -np.pi / 2*np.ones_like(fit_vals)
-        ymax = np.radians(-5.)*np.ones_like(fit_vals)
+    if sky == "all":
+        ymin = -np.pi / 2 * np.ones_like(fit_vals)
+        ymax = np.pi / 2 * np.ones_like(fit_vals)
+    elif sky == "north":
+        ymin = np.radians(-5.0) * np.ones_like(fit_vals)
+        ymax = np.pi / 2 * np.ones_like(fit_vals)
+    elif sky == "south":
+        ymin = -np.pi / 2 * np.ones_like(fit_vals)
+        ymax = np.radians(-5.0) * np.ones_like(fit_vals)
 
-    ax.fill_between(fit_vals, ymin, ymax, **kwargs) 
+    ax.fill_between(fit_vals, ymin, ymax, **kwargs)
 
     return True
 
+
+# color helper functions
+def reset_palette(n_colors, sns, pal="crest"):
+    sns.set_palette(pal, n_colors=n_colors)
+
+
+def slightly_change_color(color, amount=0.2):
+    """slightly change the color hue"""
+    if not colorsys:
+        print("Cannot change color.")
+        return color
+    try:
+        c = mc.cnames[color]
+    except:
+        c = color
+    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+    ld = 0.1 if c[1] <= 0.5 else -0.1
+    return colorsys.hls_to_rgb(c[0] + amount, c[1] + ld, c[2])
+
+
+def change_color_ld(color, amount=0.2):
+    """slightly change the color lightness/darkness"""
+    if not colorsys:
+        print("Cannot change color.")
+        return color
+    try:
+        c = mc.cnames[color]
+    except:
+        c = color
+    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+    c_new = np.clip(c[1] + amount, 0, 1)
+    return colorsys.hls_to_rgb(c[0], c_new, c[2])

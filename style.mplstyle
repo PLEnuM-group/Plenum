@@ -1,0 +1,33 @@
+figure.figsize: 8.0, 5.5
+axes.labelsize: 18
+axes.titlesize: 18
+axes.prop_cycle: cycler('color', [(0.2213631, 0.16471913, 0.33041431), (0.22413977, 0.36487341, 0.60994938), (0.20431921, 0.59140842, 0.66300179), (0.3759816, 0.80950627, 0.67641393)])
+image.cmap: mako
+xtick.labelsize: 18
+ytick.labelsize: 18
+legend.fontsize: 18
+
+font.family: serif
+mathtext.fontset: cm
+savefig.format: pdf
+savefig.dpi: 200
+savefig.transparent: False
+axes.facecolor: white
+axes.grid: True
+axes.axisbelow: True
+grid.color: 0.8
+figure.facecolor: white
+
+grid.linewidth: 1
+lines.linewidth: 2
+patch.linewidth: .3
+lines.markersize: 7
+lines.markeredgewidth: 0
+
+xtick.major.width: 1
+ytick.major.width: 1
+xtick.minor.width: .5
+ytick.minor.width: .5
+
+xtick.major.pad: 7
+ytick.major.pad: 7
