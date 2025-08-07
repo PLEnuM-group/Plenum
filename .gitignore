@@ -15,17 +15,10 @@ plenum_resources.tgz
 core/plenum.egg-info
 core/plenum.egg-info/*
 Untitled.ipynb
-notebooks/sandbox
-notebooks/sandbox/*
-untitled.ipynb
 relative_detection_eff_dIC_vs_sindec_wGen2_smaller.pdf
 resources/detection_efficiencies.pckl
 resources/inst_rel_events_ra_dec.pckl
 resources/rel_events_ra_dec.pckl
-notebooks/sandbox/diff_with_trident.ipynb
-notebooks/sandbox/diff_with_trident.ipynb
-notebooks/sandbox/firesong_tutorial.ipynb
-notebooks/sandbox/trident_input.ipynb
 notebooks/demo/demo_flux_to_events_diffuse_simplified.ipynb
 test.txt
 notebooks/demo/matplotlibrc
