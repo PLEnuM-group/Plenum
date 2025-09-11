@@ -95,6 +95,7 @@ def ps_llh_single(
     flux_shape=None,
     signal_parameters=None,  # only needed if multiple signal models are mixed
     fixed_BG=False,
+    summed=True,
 ):
     ## with the new mixture implementation this becomes a bit unwieldy - update TODO
     """
@@ -194,7 +195,7 @@ def ps_llh_single(
     mu_i = mu_s + mu_b
 
     # Calculate -2 * log-likelihood using Poisson statistics
-    return poisson_llh(mu_i, k_i)
+    return poisson_llh(mu_i, k_i, summed=summed)
 
 
 def ps_llh_multi(
@@ -209,6 +210,7 @@ def ps_llh_multi(
     phi_0,
     flux_shape=None,
     signal_parameters=None,
+    summed=True,
 ):
     """
     Calculate the total log-likelihood across multiple datasets with different properties.
@@ -244,6 +246,7 @@ def ps_llh_multi(
             shape=shape,
             flux_shape=flux_shape,
             signal_parameters=signal_parameters,
+            summed=summed,
         )
     return llh
 
