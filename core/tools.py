@@ -33,7 +33,8 @@ def scaling_estimation(
     """Estimate the best flux scaling factor to reach the current
     p-value threshold based on interpolating the recent tests with
     different scaling factors"""
-
+    if stepper <= 1:
+        print("WARNING: stepper should be larger than 1, it is currently", stepper)
     # First, check that the last pval we put into the df is reasonable
     # if it's nan, the scaling factor was too large
     if np.isnan(df.iloc[-1]["log10(p)"]) or (df.iloc[-1]["pval"] > 0.99):
@@ -44,7 +45,11 @@ def scaling_estimation(
 
     # start with sampling min_steps values to estimate the scaling factor
     if len(df) <= min_steps:
-        scaler_new = scaler / stepper
+        # scale down, if we are above the threshold
+        if df.iloc[0]["log10(p)"] >= -np.log10(current_thresholds[0]):
+            scaler_new = scaler / stepper
+        else:  # otherwise, scale up
+            scaler_new = scaler * stepper
         return scaler_new
 
     # check if we already sampled close enough to the threshold
@@ -212,6 +217,7 @@ def sigma2pval(sigma, one_sided=True):
         return norm.sf(sigma)
     else:
         return 1.0 - (norm.cdf(sigma) - norm.cdf(-sigma))
+
 
 def get_mids(bins, ext=False):
     """Calculate the bin mids from an array of bin edges."""
